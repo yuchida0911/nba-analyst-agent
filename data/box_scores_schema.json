@@ -1,0 +1,315 @@
+{
+  "table_name": "box_scores",
+  "description": "Player-level game statistics for NBA regular season and playoff games from 2010-2024",
+  "data_type": "player_game_stats",
+  "source_files": [
+    "regular_season_box_scores_2010_2024_part_1.csv",
+    "regular_season_box_scores_2010_2024_part_2.csv", 
+    "regular_season_box_scores_2010_2024_part_3.csv",
+    "play_off_box_scores_2010_2024.csv"
+  ],
+  "primary_keys": ["gameId", "personId"],
+  "foreign_keys": {
+    "gameId": "References unique game identifier",
+    "teamId": "References team identifier",
+    "personId": "References player identifier"
+  },
+  "columns": [
+    {
+      "name": "season_year",
+      "data_type": "string",
+      "description": "The NBA season year (e.g., '2010-11')",
+      "example": "2010-11",
+      "nullable": false,
+      "validation": "Format: YYYY-YY"
+    },
+    {
+      "name": "game_date",
+      "data_type": "date",
+      "description": "Date when the game was played",
+      "example": "2010-11-10",
+      "nullable": false,
+      "validation": "ISO date format YYYY-MM-DD"
+    },
+    {
+      "name": "gameId",
+      "data_type": "integer",
+      "description": "Unique identifier for each NBA game",
+      "example": 21000112,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "matchup",
+      "data_type": "string",
+      "description": "Team matchup showing visiting team @ home team or home team vs visiting team",
+      "example": "NJN @ CLE",
+      "nullable": true,
+      "validation": "Format: TEAM @ TEAM or TEAM vs TEAM"
+    },
+    {
+      "name": "teamId",
+      "data_type": "integer",
+      "description": "Unique identifier for the NBA team",
+      "example": 1610612751,
+      "nullable": false,
+      "validation": "10-digit integer starting with 1610612"
+    },
+    {
+      "name": "teamCity",
+      "data_type": "string",
+      "description": "City where the team is based",
+      "example": "New Jersey",
+      "nullable": false
+    },
+    {
+      "name": "teamName",
+      "data_type": "string",
+      "description": "Official team name",
+      "example": "Nets",
+      "nullable": false
+    },
+    {
+      "name": "teamTricode",
+      "data_type": "string",
+      "description": "Three-letter abbreviation for the team",
+      "example": "NJN",
+      "nullable": false,
+      "validation": "Exactly 3 uppercase letters"
+    },
+    {
+      "name": "teamSlug",
+      "data_type": "string",
+      "description": "URL-friendly team identifier",
+      "example": "nets",
+      "nullable": false,
+      "validation": "Lowercase letters only"
+    },
+    {
+      "name": "personId",
+      "data_type": "integer",
+      "description": "Unique identifier for the NBA player",
+      "example": 693,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "personName",
+      "data_type": "string",
+      "description": "Full name of the player",
+      "example": "Joe Smith",
+      "nullable": false
+    },
+    {
+      "name": "position",
+      "data_type": "string",
+      "description": "Player's position (G=Guard, F=Forward, C=Center, or combinations)",
+      "example": "F",
+      "nullable": true,
+      "validation": "Valid positions: G, F, C, or combinations like F-G"
+    },
+    {
+      "name": "comment",
+      "data_type": "string",
+      "description": "Special notes about player status (DNP reasons, injuries, etc.)",
+      "example": "DNP - Coach's Decision",
+      "nullable": true
+    },
+    {
+      "name": "jerseyNum",
+      "data_type": "string",
+      "description": "Player's jersey number",
+      "example": "23",
+      "nullable": true,
+      "validation": "Usually 1-99, but stored as string for special cases"
+    },
+    {
+      "name": "minutes",
+      "data_type": "string",
+      "description": "Total minutes played in MM:SS format",
+      "example": "4:21",
+      "nullable": true,
+      "validation": "Format: MM:SS, 0 for DNP players"
+    },
+    {
+      "name": "fieldGoalsMade",
+      "data_type": "integer",
+      "description": "Number of field goals successfully made",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "fieldGoalsAttempted",
+      "data_type": "integer",
+      "description": "Total number of field goal attempts",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer, >= fieldGoalsMade"
+    },
+    {
+      "name": "fieldGoalsPercentage",
+      "data_type": "float",
+      "description": "Field goal shooting percentage (0.0-1.0)",
+      "example": 0.0,
+      "nullable": false,
+      "validation": "Range: 0.0-1.0, calculated as fieldGoalsMade/fieldGoalsAttempted"
+    },
+    {
+      "name": "threePointersMade",
+      "data_type": "integer",
+      "description": "Number of three-point shots made",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer, <= fieldGoalsMade"
+    },
+    {
+      "name": "threePointersAttempted",
+      "data_type": "integer",
+      "description": "Total number of three-point attempts",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer, >= threePointersMade, <= fieldGoalsAttempted"
+    },
+    {
+      "name": "threePointersPercentage",
+      "data_type": "float",
+      "description": "Three-point shooting percentage (0.0-1.0)",
+      "example": 0.0,
+      "nullable": false,
+      "validation": "Range: 0.0-1.0, calculated as threePointersMade/threePointersAttempted"
+    },
+    {
+      "name": "freeThrowsMade",
+      "data_type": "integer",
+      "description": "Number of free throws made",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "freeThrowsAttempted",
+      "data_type": "integer",
+      "description": "Total number of free throw attempts",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer, >= freeThrowsMade"
+    },
+    {
+      "name": "freeThrowsPercentage",
+      "data_type": "float",
+      "description": "Free throw shooting percentage (0.0-1.0)",
+      "example": 0.0,
+      "nullable": false,
+      "validation": "Range: 0.0-1.0, calculated as freeThrowsMade/freeThrowsAttempted"
+    },
+    {
+      "name": "reboundsOffensive",
+      "data_type": "integer",
+      "description": "Number of offensive rebounds (team's missed shots recovered)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "reboundsDefensive",
+      "data_type": "integer",
+      "description": "Number of defensive rebounds (opponent's missed shots recovered)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "reboundsTotal",
+      "data_type": "integer",
+      "description": "Total rebounds (offensive + defensive)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Must equal reboundsOffensive + reboundsDefensive"
+    },
+    {
+      "name": "assists",
+      "data_type": "integer",
+      "description": "Number of assists (passes leading directly to teammate scoring)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "steals",
+      "data_type": "integer",
+      "description": "Number of steals (successful defensive plays taking possession)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "blocks",
+      "data_type": "integer",
+      "description": "Number of blocked shots (defensive plays stopping opponent shots)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "turnovers",
+      "data_type": "integer",
+      "description": "Number of turnovers (loss of possession without shot attempt)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "foulsPersonal",
+      "data_type": "integer",
+      "description": "Number of personal fouls committed",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer, typically 0-6 per game"
+    },
+    {
+      "name": "points",
+      "data_type": "integer",
+      "description": "Total points scored (2*fieldGoalsMade + 3*threePointersMade + freeThrowsMade - 2*threePointersMade)",
+      "example": 0,
+      "nullable": false,
+      "validation": "Non-negative integer, calculated from made shots"
+    },
+    {
+      "name": "plusMinusPoints",
+      "data_type": "integer",
+      "description": "Plus-minus statistic: team's point differential while player was on court",
+      "example": -4,
+      "nullable": false,
+      "validation": "Integer (can be negative), measures team performance with player on court"
+    }
+  ],
+  "relationships": {
+    "to_totals": {
+      "description": "Box scores can be aggregated by gameId and teamId to derive team totals",
+      "join_keys": ["gameId", "teamId"]
+    }
+  },
+  "business_rules": [
+    "Players with DNP (Did Not Play) status have 0 minutes and 0 for all statistical categories",
+    "Points calculation: (fieldGoalsMade - threePointersMade) * 2 + threePointersMade * 3 + freeThrowsMade",
+    "Total rebounds must equal offensive rebounds + defensive rebounds",
+    "Three-point statistics are subset of field goal statistics",
+    "Plus-minus reflects team performance differential while specific player was active"
+  ],
+  "usage_notes": {
+    "for_ai_agents": [
+      "Use gameId to group players by game for team analysis",
+      "Filter by personId for individual player career analysis", 
+      "DNP players should be excluded from performance averages but included for availability analysis",
+      "Plus-minus is context-dependent and should be interpreted with team performance",
+      "Minutes played indicates actual game participation (0 = did not play)"
+    ],
+    "common_analyses": [
+      "Player efficiency: points per minute, shooting percentages",
+      "Team composition: position distribution, playing time allocation",
+      "Performance trends: season progression, home vs away splits",
+      "Head-to-head matchups: player vs player, team vs team historical performance"
+    ]
+  }
+}

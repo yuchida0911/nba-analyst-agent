@@ -1,0 +1,509 @@
+{
+  "table_name": "totals",
+  "description": "Team-level game statistics and rankings for NBA regular season and playoff games from 2010-2024",
+  "data_type": "team_game_stats",
+  "source_files": [
+    "regular_season_totals_2010_2024.csv",
+    "play_off_totals_2010_2024.csv"
+  ],
+  "primary_keys": ["GAME_ID", "TEAM_ID"],
+  "foreign_keys": {
+    "GAME_ID": "References unique game identifier (matches gameId in box_scores)",
+    "TEAM_ID": "References team identifier (matches teamId in box_scores)"
+  },
+  "columns": [
+    {
+      "name": "SEASON_YEAR",
+      "data_type": "string",
+      "description": "The NBA season year",
+      "example": "2022-23",
+      "nullable": false,
+      "validation": "Format: YYYY-YY"
+    },
+    {
+      "name": "TEAM_ID",
+      "data_type": "integer",
+      "description": "Unique identifier for the NBA team",
+      "example": 1610612744,
+      "nullable": false,
+      "validation": "10-digit integer starting with 1610612"
+    },
+    {
+      "name": "TEAM_ABBREVIATION",
+      "data_type": "string",
+      "description": "Three-letter team abbreviation",
+      "example": "GSW",
+      "nullable": false,
+      "validation": "Exactly 3 uppercase letters"
+    },
+    {
+      "name": "TEAM_NAME",
+      "data_type": "string",
+      "description": "Full official team name",
+      "example": "Golden State Warriors",
+      "nullable": false
+    },
+    {
+      "name": "GAME_ID",
+      "data_type": "integer",
+      "description": "Unique identifier for each NBA game",
+      "example": 22201230,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "GAME_DATE",
+      "data_type": "datetime",
+      "description": "Date and time when the game was played",
+      "example": "2023-04-09T00:00:00",
+      "nullable": false,
+      "validation": "ISO 8601 datetime format"
+    },
+    {
+      "name": "MATCHUP",
+      "data_type": "string",
+      "description": "Team matchup showing team @ opponent or team vs opponent",
+      "example": "GSW @ POR",
+      "nullable": false,
+      "validation": "Format: TEAM @ TEAM or TEAM vs TEAM"
+    },
+    {
+      "name": "WL",
+      "data_type": "string",
+      "description": "Game outcome: W for Win, L for Loss",
+      "example": "W",
+      "nullable": false,
+      "validation": "Must be 'W' or 'L'"
+    },
+    {
+      "name": "MIN",
+      "data_type": "float",
+      "description": "Total team minutes played (usually 240.0 for regulation games)",
+      "example": 48.0,
+      "nullable": false,
+      "validation": "Positive number, typically 240.0 for regulation"
+    },
+    {
+      "name": "FGM",
+      "data_type": "integer",
+      "description": "Total field goals made by the team",
+      "example": 58,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "FGA",
+      "data_type": "integer",
+      "description": "Total field goal attempts by the team",
+      "example": 96,
+      "nullable": false,
+      "validation": "Non-negative integer, >= FGM"
+    },
+    {
+      "name": "FG_PCT",
+      "data_type": "float",
+      "description": "Team field goal shooting percentage",
+      "example": 0.604,
+      "nullable": false,
+      "validation": "Range: 0.0-1.0, calculated as FGM/FGA"
+    },
+    {
+      "name": "FG3M",
+      "data_type": "integer",
+      "description": "Total three-point field goals made by the team",
+      "example": 27,
+      "nullable": false,
+      "validation": "Non-negative integer, <= FGM"
+    },
+    {
+      "name": "FG3A",
+      "data_type": "integer",
+      "description": "Total three-point attempts by the team",
+      "example": 49,
+      "nullable": false,
+      "validation": "Non-negative integer, >= FG3M, <= FGA"
+    },
+    {
+      "name": "FG3_PCT",
+      "data_type": "float",
+      "description": "Team three-point shooting percentage",
+      "example": 0.551,
+      "nullable": false,
+      "validation": "Range: 0.0-1.0, calculated as FG3M/FG3A"
+    },
+    {
+      "name": "FTM",
+      "data_type": "integer",
+      "description": "Total free throws made by the team",
+      "example": 14,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "FTA",
+      "data_type": "integer",
+      "description": "Total free throw attempts by the team",
+      "example": 16,
+      "nullable": false,
+      "validation": "Non-negative integer, >= FTM"
+    },
+    {
+      "name": "FT_PCT",
+      "data_type": "float",
+      "description": "Team free throw shooting percentage",
+      "example": 0.875,
+      "nullable": false,
+      "validation": "Range: 0.0-1.0, calculated as FTM/FTA"
+    },
+    {
+      "name": "OREB",
+      "data_type": "integer",
+      "description": "Total offensive rebounds by the team",
+      "example": 9,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "DREB",
+      "data_type": "integer",
+      "description": "Total defensive rebounds by the team",
+      "example": 49,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "REB",
+      "data_type": "integer",
+      "description": "Total rebounds by the team (OREB + DREB)",
+      "example": 58,
+      "nullable": false,
+      "validation": "Must equal OREB + DREB"
+    },
+    {
+      "name": "AST",
+      "data_type": "integer",
+      "description": "Total assists by the team",
+      "example": 47,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "TOV",
+      "data_type": "float",
+      "description": "Total turnovers by the team",
+      "example": 16.0,
+      "nullable": false,
+      "validation": "Non-negative number"
+    },
+    {
+      "name": "STL",
+      "data_type": "integer",
+      "description": "Total steals by the team",
+      "example": 13,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "BLK",
+      "data_type": "integer",
+      "description": "Total blocks by the team",
+      "example": 6,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "BLKA",
+      "data_type": "integer",
+      "description": "Total opponent blocks (shots blocked by opponents)",
+      "example": 3,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "PF",
+      "data_type": "integer",
+      "description": "Total personal fouls committed by the team",
+      "example": 18,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "PFD",
+      "data_type": "integer",
+      "description": "Total personal fouls drawn by the team",
+      "example": 9,
+      "nullable": false,
+      "validation": "Non-negative integer"
+    },
+    {
+      "name": "PTS",
+      "data_type": "integer",
+      "description": "Total points scored by the team",
+      "example": 157,
+      "nullable": false,
+      "validation": "Non-negative integer, calculated from made shots"
+    },
+    {
+      "name": "PLUS_MINUS",
+      "data_type": "float",
+      "description": "Team's point differential (points scored - points allowed)",
+      "example": 56.0,
+      "nullable": false,
+      "validation": "Can be negative, positive indicates team outscored opponent"
+    },
+    {
+      "name": "GP_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on games played",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer, 1-30 typically"
+    },
+    {
+      "name": "W_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on total wins",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer, 1-30 typically"
+    },
+    {
+      "name": "L_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on total losses",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer, 1-30 typically"
+    },
+    {
+      "name": "W_PCT_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on win percentage",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer, 1-30 typically"
+    },
+    {
+      "name": "MIN_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on total minutes played",
+      "example": 159,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FGM_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on field goals made",
+      "example": 3,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FGA_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on field goal attempts",
+      "example": 316,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FG_PCT_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on field goal percentage",
+      "example": 35,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FG3M_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on three-point field goals made",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FG3A_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on three-point attempts",
+      "example": 56,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FG3_PCT_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on three-point percentage",
+      "example": 34,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FTM_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on free throws made",
+      "example": 1831,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FTA_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on free throw attempts",
+      "example": 2089,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "FT_PCT_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on free throw percentage",
+      "example": 383,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "OREB_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on offensive rebounds",
+      "example": 1392,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "DREB_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on defensive rebounds",
+      "example": 8,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "REB_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on total rebounds",
+      "example": 47,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "AST_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on assists",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "TOV_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on turnovers",
+      "example": 1578,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "STL_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on steals",
+      "example": 55,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "BLK_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on blocks",
+      "example": 512,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "BLKA_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on opponent blocks",
+      "example": 457,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "PF_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on personal fouls committed",
+      "example": 678,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "PFD_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on personal fouls drawn",
+      "example": 2455,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "PTS_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on total points scored",
+      "example": 3,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "PLUS_MINUS_RANK",
+      "data_type": "integer",
+      "description": "Team's rank based on plus-minus differential",
+      "example": 1,
+      "nullable": false,
+      "validation": "Positive integer"
+    },
+    {
+      "name": "AVAILABLE_FLAG",
+      "data_type": "float",
+      "description": "Flag indicating data availability (1.0 = available, 0.0 = not available)",
+      "example": 1.0,
+      "nullable": false,
+      "validation": "Must be 0.0 or 1.0"
+    }
+  ],
+  "relationships": {
+    "to_box_scores": {
+      "description": "Team totals are aggregations of individual player box scores for the same game and team",
+      "join_keys": ["GAME_ID", "TEAM_ID"],
+      "relationship_type": "one-to-many"
+    }
+  },
+  "business_rules": [
+    "Each game has exactly two team total records (one for each team)",
+    "Total points calculation: (FGM - FG3M) * 2 + FG3M * 3 + FTM",
+    "Total rebounds must equal offensive rebounds + defensive rebounds",
+    "Three-point statistics are subset of field goal statistics",
+    "PLUS_MINUS represents point differential (team points - opponent points)",
+    "Ranking fields represent cumulative season rankings at time of game",
+    "AVAILABLE_FLAG indicates whether complete statistical data is available"
+  ],
+  "usage_notes": {
+    "for_ai_agents": [
+      "Use GAME_ID to join with box_scores for detailed player breakdowns",
+      "WL field provides immediate game outcome without calculation",
+      "Ranking fields show historical team performance context",
+      "PLUS_MINUS directly shows margin of victory/defeat",
+      "Filter by AVAILABLE_FLAG=1.0 for complete statistical records"
+    ],
+    "common_analyses": [
+      "Team performance trends: win percentage, scoring efficiency over time",
+      "Head-to-head comparisons: historical matchup analysis",
+      "League rankings: team standings and statistical rankings",
+      "Game outcome prediction: using historical performance metrics",
+      "Correlation analysis: relationship between different statistical categories and wins"
+    ],
+    "ranking_interpretation": [
+      "Lower rank numbers typically indicate better performance (e.g., W_RANK=1 means most wins)",
+      "Ranking values can exceed 30 due to historical accumulation across seasons",
+      "Rankings provide context for team performance relative to league",
+      "Some rankings may be inverse (higher rank = worse performance for negative stats like turnovers)"
+    ]
+  }
+}
