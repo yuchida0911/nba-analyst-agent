@@ -467,9 +467,71 @@ class NBADataIngestion:
     
     def _totals_row_to_dict(self, row: pd.Series) -> Dict[str, Any]:
         """Convert totals row to TeamGameTotal model data."""
-        # Implementation for totals data conversion
-        # This would be similar to box_score_row_to_dict but for team data
-        pass
+        # Handle missing values (reuse same helper functions)
+        def safe_int(value, default=0):
+            if pd.isna(value):
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+        
+        def safe_float(value, default=0.0):
+            if pd.isna(value):
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+        
+        def safe_str(value, default=""):
+            if pd.isna(value):
+                return default
+            return str(value)
+        
+        def safe_date(value):
+            if pd.isna(value):
+                return None
+            if isinstance(value, date):
+                return value
+            try:
+                return pd.to_datetime(value).date()
+            except:
+                return None
+        
+        return {
+            'game_id': safe_int(row.get('GAME_ID')),
+            'team_id': safe_int(row.get('TEAM_ID')),
+            'season_year': safe_str(row.get('SEASON_YEAR')),
+            'team_abbreviation': safe_str(row.get('TEAM_ABBREVIATION')),
+            'team_name': safe_str(row.get('TEAM_NAME')),
+            'game_date': safe_date(row.get('GAME_DATE')),
+            'matchup': safe_str(row.get('MATCHUP')),
+            'wl': safe_str(row.get('WL')),
+            'min_played': safe_float(row.get('MIN')),
+            'fgm': safe_int(row.get('FGM')),
+            'fga': safe_int(row.get('FGA')),
+            'fg_pct': safe_float(row.get('FG_PCT')),
+            'fg3m': safe_int(row.get('FG3M')),
+            'fg3a': safe_int(row.get('FG3A')),
+            'fg3_pct': safe_float(row.get('FG3_PCT')),
+            'ftm': safe_int(row.get('FTM')),
+            'fta': safe_int(row.get('FTA')),
+            'ft_pct': safe_float(row.get('FT_PCT')),
+            'oreb': safe_int(row.get('OREB')),
+            'dreb': safe_int(row.get('DREB')),
+            'reb': safe_int(row.get('REB')),
+            'ast': safe_int(row.get('AST')),
+            'tov': safe_float(row.get('TOV')),
+            'stl': safe_int(row.get('STL')),
+            'blk': safe_int(row.get('BLK')),
+            'blka': safe_int(row.get('BLKA')),
+            'pf': safe_int(row.get('PF')),
+            'pfd': safe_int(row.get('PFD')),
+            'pts': safe_int(row.get('PTS')),
+            'plus_minus': safe_float(row.get('PLUS_MINUS')),
+            'available_flag': safe_float(row.get('AVAILABLE_FLAG')),
+        }
     
     def get_ingestion_summary(self, results: List[IngestionResult]) -> Dict[str, Any]:
         """Generate summary statistics from multiple ingestion results."""
