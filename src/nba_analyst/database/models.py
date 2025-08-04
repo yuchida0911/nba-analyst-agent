@@ -120,8 +120,8 @@ class PlayerBoxScore(Base):
     def is_dnp(self) -> bool:
         """Check if player did not play (DNP)."""
         return (
-            self.minutes in ("0", "0:00", None) or
-            (self.comment and "DNP" in self.comment)
+            self.minutes in ("0", "0:00", "", None) or
+            (self.comment is not None and "DNP" in self.comment)
         )
     
     def validate_data_integrity(self) -> list[str]:
