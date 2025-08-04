@@ -38,6 +38,10 @@ class DatabaseConfig:
         Returns:
             Database connection URL
         """
+        # Use SQLite for testing or when no host is specified
+        if self.settings.testing or not self.settings.db_host:
+            return f"sqlite:///{self.settings.db_name}"
+            
         if include_password:
             password = quote_plus(self.settings.db_password)
             return (
@@ -57,6 +61,13 @@ class DatabaseConfig:
         Returns:
             SQLAlchemy URL object
         """
+        # Use SQLite for testing or when no host is specified
+        if self.settings.testing or not self.settings.db_host:
+            return URL.create(
+                drivername="sqlite",
+                database=self.settings.db_name,
+            )
+            
         return URL.create(
             drivername="postgresql+psycopg2",
             username=self.settings.db_user,
@@ -73,6 +84,14 @@ class DatabaseConfig:
         Returns:
             Dictionary of engine configuration parameters
         """
+        # SQLite configuration for testing
+        if self.settings.testing or not self.settings.db_host:
+            return {
+                "echo": self.settings.debug,  # Log SQL queries in debug mode
+                "connect_args": {"check_same_thread": False},  # Allow SQLite from multiple threads
+            }
+            
+        # PostgreSQL configuration
         return {
             "poolclass": QueuePool,
             "pool_size": self.settings.db_pool_size,
@@ -129,7 +148,9 @@ class DatabaseConfig:
         try:
             engine = self.create_engine()
             with engine.connect() as conn:
-                result = conn.execute("SELECT 1")
+                # Use text() for raw SQL to avoid SQLAlchemy 2.0 warnings
+                from sqlalchemy import text
+                result = conn.execute(text("SELECT 1"))
                 return result.scalar() == 1
         except Exception:
             return False
