@@ -9,10 +9,11 @@ import logging
 from contextlib import contextmanager
 from typing import Generator, Optional, Any, Dict
 
-from sqlalchemy import create_engine, Engine, text
+from sqlalchemy import create_engine, Engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import Pool
+from sqlalchemy.engine import Inspector
 
 from ..config.database import DatabaseConfig
 from ..config.settings import Settings, load_settings
@@ -242,6 +243,15 @@ class DatabaseConnection:
         except SQLAlchemyError as e:
             logger.error(f"Failed to get row count for {full_table_name}: {e}")
             return 0
+    
+    def get_inspector(self) -> Inspector:
+        """
+        Get SQLAlchemy inspector for database metadata operations.
+        
+        Returns:
+            SQLAlchemy Inspector instance
+        """
+        return inspect(self.engine)
     
     def close(self) -> None:
         """Close all database connections and clean up resources."""
