@@ -6,7 +6,7 @@ based on the JSON schema specifications for NBA data.
 """
 
 from datetime import date
-from typing import Optional
+from typing import Optional, Dict
 
 from sqlalchemy import Column, Integer, String, Date, Float, Text, Boolean, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
@@ -261,3 +261,199 @@ class TeamGameTotal(Base):
     def is_loss(self) -> bool:
         """Check if team lost the game."""
         return self.wl == 'L'
+
+
+class PlayerProcessed(Base):
+    """
+    AI-optimized processed player data with advanced metrics.
+    
+    This table contains transformed player data with calculated advanced metrics,
+    ready for AI agent analysis and reporting.
+    """
+    
+    __tablename__ = 'players_processed'
+    
+    # Primary key fields
+    game_id = Column('game_id', BigInteger, nullable=False, comment="Unique identifier for each NBA game")
+    person_id = Column('person_id', Integer, nullable=False, comment="Unique identifier for the NBA player")
+    
+    # Basic game information
+    season_year = Column('season_year', String(7), nullable=False, comment="NBA season year")
+    game_date = Column('game_date', Date, nullable=False, comment="Date when the game was played")
+    matchup = Column('matchup', String(20), nullable=True, comment="Team matchup")
+    
+    # Player and team information
+    person_name = Column('person_name', String(100), nullable=False, comment="Full name of the player")
+    team_id = Column('team_id', BigInteger, nullable=False, comment="Unique identifier for the NBA team")
+    team_name = Column('team_name', String(50), nullable=False, comment="Official team name")
+    team_tricode = Column('team_tricode', String(3), nullable=False, comment="Three-letter team abbreviation")
+    position = Column('position', String(10), nullable=True, comment="Player's position")
+    
+    # Playing time
+    minutes_played = Column('minutes_played', Float, nullable=False, default=0.0, comment="Minutes played in decimal format")
+    is_dnp = Column('is_dnp', Boolean, nullable=False, default=False, comment="Did not play flag")
+    
+    # Basic box score stats
+    points = Column('points', Integer, nullable=False, default=0, comment="Total points scored")
+    field_goals_made = Column('field_goals_made', Integer, nullable=False, default=0, comment="Field goals made")
+    field_goals_attempted = Column('field_goals_attempted', Integer, nullable=False, default=0, comment="Field goal attempts")
+    three_pointers_made = Column('three_pointers_made', Integer, nullable=False, default=0, comment="Three-point shots made")
+    three_pointers_attempted = Column('three_pointers_attempted', Integer, nullable=False, default=0, comment="Three-point attempts")
+    free_throws_made = Column('free_throws_made', Integer, nullable=False, default=0, comment="Free throws made")
+    free_throws_attempted = Column('free_throws_attempted', Integer, nullable=False, default=0, comment="Free throw attempts")
+    rebounds_offensive = Column('rebounds_offensive', Integer, nullable=False, default=0, comment="Offensive rebounds")
+    rebounds_defensive = Column('rebounds_defensive', Integer, nullable=False, default=0, comment="Defensive rebounds")
+    rebounds_total = Column('rebounds_total', Integer, nullable=False, default=0, comment="Total rebounds")
+    assists = Column('assists', Integer, nullable=False, default=0, comment="Assists")
+    steals = Column('steals', Integer, nullable=False, default=0, comment="Steals")
+    blocks = Column('blocks', Integer, nullable=False, default=0, comment="Blocked shots")
+    turnovers = Column('turnovers', Integer, nullable=False, default=0, comment="Turnovers")
+    fouls_personal = Column('fouls_personal', Integer, nullable=False, default=0, comment="Personal fouls")
+    plus_minus = Column('plus_minus', Integer, nullable=False, default=0, comment="Plus-minus statistic")
+    
+    # Advanced shooting metrics
+    true_shooting_percentage = Column('true_shooting_pct', Float, nullable=True, comment="True Shooting Percentage")
+    effective_field_goal_percentage = Column('effective_fg_pct', Float, nullable=True, comment="Effective Field Goal Percentage")
+    field_goal_percentage = Column('field_goal_pct', Float, nullable=True, comment="Field Goal Percentage")
+    three_point_percentage = Column('three_point_pct', Float, nullable=True, comment="Three Point Percentage")
+    free_throw_percentage = Column('free_throw_pct', Float, nullable=True, comment="Free Throw Percentage")
+    
+    # Advanced performance metrics
+    player_efficiency_rating = Column('player_efficiency_rating', Float, nullable=True, comment="Player Efficiency Rating (simplified)")
+    usage_rate = Column('usage_rate', Float, nullable=True, comment="Usage Rate estimation")
+    defensive_impact_score = Column('defensive_impact_score', Float, nullable=True, comment="Defensive Impact Score (0-100)")
+    
+    # Per-36 minute stats
+    points_per_36 = Column('points_per_36', Float, nullable=True, comment="Points per 36 minutes")
+    rebounds_per_36 = Column('rebounds_per_36', Float, nullable=True, comment="Rebounds per 36 minutes")
+    assists_per_36 = Column('assists_per_36', Float, nullable=True, comment="Assists per 36 minutes")
+    steals_per_36 = Column('steals_per_36', Float, nullable=True, comment="Steals per 36 minutes")
+    blocks_per_36 = Column('blocks_per_36', Float, nullable=True, comment="Blocks per 36 minutes")
+    
+    # Performance grades
+    efficiency_grade = Column('efficiency_grade', String(2), nullable=True, comment="Shooting efficiency grade (A+ to D-)")
+    defensive_grade = Column('defensive_grade', String(2), nullable=True, comment="Defensive performance grade (A+ to D-)")
+    
+    # Data processing metadata
+    processed_at = Column('processed_at', Date, nullable=False, comment="Date when data was processed")
+    source_validation_passed = Column('source_validation_passed', Boolean, nullable=False, default=True, comment="Source data validation status")
+    
+    # Define composite primary key
+    __table_args__ = (
+        PrimaryKeyConstraint('game_id', 'person_id', name='pk_players_processed'),
+        
+        # Indexes for analytics queries
+        Index('idx_players_processed_person_date', 'person_id', 'game_date'),
+        Index('idx_players_processed_person_season', 'person_id', 'season_year'),
+        Index('idx_players_processed_team_date', 'team_id', 'game_date'),
+        Index('idx_players_processed_season', 'season_year'),
+        Index('idx_players_processed_efficiency', 'true_shooting_pct'),
+        Index('idx_players_processed_per', 'player_efficiency_rating'),
+        Index('idx_players_processed_minutes', 'minutes_played'),
+        
+        {
+            'comment': 'AI-optimized processed player data with advanced basketball metrics'
+        }
+    )
+    
+    def __repr__(self) -> str:
+        """String representation of the model."""
+        return (
+            f"<PlayerProcessed(game_id={self.game_id}, person_id={self.person_id}, "
+            f"person_name='{self.person_name}', points={self.points}, "
+            f"true_shooting_pct={self.true_shooting_percentage})>"
+        )
+    
+    @property
+    def is_starter(self) -> bool:
+        """Estimate if player was a starter based on minutes played."""
+        return self.minutes_played >= 20.0 and not self.is_dnp
+    
+    @property
+    def is_significant_minutes(self) -> bool:
+        """Check if player played significant minutes (>= 10 minutes)."""
+        return self.minutes_played >= 10.0
+    
+    def get_per_minute_stats(self) -> Dict[str, Optional[float]]:
+        """Calculate per-minute statistics."""
+        if self.minutes_played <= 0:
+            return {stat: None for stat in ['points_per_min', 'rebounds_per_min', 'assists_per_min']}
+        
+        return {
+            'points_per_min': self.points / self.minutes_played,
+            'rebounds_per_min': self.rebounds_total / self.minutes_played,
+            'assists_per_min': self.assists / self.minutes_played,
+            'steals_per_min': self.steals / self.minutes_played,
+            'blocks_per_min': self.blocks / self.minutes_played
+        }
+
+
+class PlayerMonthlyTrend(Base):
+    """
+    Monthly aggregated player performance trends with recency weighting.
+    
+    This table stores monthly performance aggregations used for trend analysis
+    and AI-powered insights.
+    """
+    
+    __tablename__ = 'player_monthly_trends'
+    
+    # Primary key fields
+    person_id = Column('person_id', Integer, nullable=False, comment="Unique identifier for the NBA player")
+    season_year = Column('season_year', String(7), nullable=False, comment="NBA season year")
+    month_year = Column('month_year', String(7), nullable=False, comment="Month-year in YYYY-MM format")
+    
+    # Basic information
+    person_name = Column('person_name', String(100), nullable=False, comment="Full name of the player")
+    games_played = Column('games_played', Integer, nullable=False, default=0, comment="Games played in the month")
+    
+    # Monthly averages - basic stats
+    avg_minutes = Column('avg_minutes', Float, nullable=False, default=0.0, comment="Average minutes per game")
+    avg_points = Column('avg_points', Float, nullable=False, default=0.0, comment="Average points per game")
+    avg_rebounds = Column('avg_rebounds', Float, nullable=False, default=0.0, comment="Average rebounds per game")
+    avg_assists = Column('avg_assists', Float, nullable=False, default=0.0, comment="Average assists per game")
+    avg_steals = Column('avg_steals', Float, nullable=False, default=0.0, comment="Average steals per game")
+    avg_blocks = Column('avg_blocks', Float, nullable=False, default=0.0, comment="Average blocks per game")
+    avg_turnovers = Column('avg_turnovers', Float, nullable=False, default=0.0, comment="Average turnovers per game")
+    
+    # Monthly averages - shooting
+    avg_field_goal_pct = Column('avg_field_goal_pct', Float, nullable=True, comment="Average field goal percentage")
+    avg_three_point_pct = Column('avg_three_point_pct', Float, nullable=True, comment="Average three point percentage")
+    avg_free_throw_pct = Column('avg_free_throw_pct', Float, nullable=True, comment="Average free throw percentage")
+    avg_true_shooting_pct = Column('avg_true_shooting_pct', Float, nullable=True, comment="Average true shooting percentage")
+    avg_effective_fg_pct = Column('avg_effective_fg_pct', Float, nullable=True, comment="Average effective field goal percentage")
+    
+    # Monthly averages - advanced metrics
+    avg_player_efficiency_rating = Column('avg_per', Float, nullable=True, comment="Average Player Efficiency Rating")
+    avg_usage_rate = Column('avg_usage_rate', Float, nullable=True, comment="Average Usage Rate")
+    avg_defensive_impact_score = Column('avg_defensive_impact', Float, nullable=True, comment="Average Defensive Impact Score")
+    
+    # Trend analysis
+    recency_weight = Column('recency_weight', Float, nullable=False, default=1.0, comment="Recency weighting factor")
+    trend_direction = Column('trend_direction', String(20), nullable=True, comment="Trend direction (improving/declining/stable)")
+    consistency_score = Column('consistency_score', Float, nullable=True, comment="Performance consistency score (0-100)")
+    
+    # Data processing metadata
+    calculated_at = Column('calculated_at', Date, nullable=False, comment="Date when trends were calculated")
+    
+    # Define composite primary key
+    __table_args__ = (
+        PrimaryKeyConstraint('person_id', 'season_year', 'month_year', name='pk_player_monthly_trends'),
+        
+        # Indexes for trend queries
+        Index('idx_player_trends_person', 'person_id'),
+        Index('idx_player_trends_person_season', 'person_id', 'season_year'),
+        Index('idx_player_trends_month', 'month_year'),
+        Index('idx_player_trends_recency', 'recency_weight'),
+        
+        {
+            'comment': 'Monthly aggregated player performance trends for AI analysis'
+        }
+    )
+    
+    def __repr__(self) -> str:
+        """String representation of the model."""
+        return (
+            f"<PlayerMonthlyTrend(person_id={self.person_id}, month_year='{self.month_year}', "
+            f"person_name='{self.person_name}', avg_points={self.avg_points})>"
+        )
