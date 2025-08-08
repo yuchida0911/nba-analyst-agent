@@ -198,18 +198,163 @@ class NBABigQueryLoader:
             logger.error(f"Error type: {type(e).__name__}")
             return False
 
-    def load_csv_files(self, csv_patterns: List[str]) -> Dict[str, Any]:
+    def create_totals_table(self) -> bool:
+        """
+        Create the team totals table (per-game team statistics) in BigQuery.
+
+        Schema derived from data/totals_schema.json.
+
+        Returns:
+            bool: True if created or already exists, False on failure
+        """
+        start_time = datetime.now()
+        table_id = f"{self.project_id}.{self.dataset_id}.totals"
+
+        logger.info(f"Starting table creation process for {table_id}")
+
+        # Ensure dataset exists
+        try:
+            self.client.get_dataset(self.dataset_id)
+        except NotFound:
+            logger.info(f"Dataset {self.dataset_id} not found, creating it first...")
+            if not self._create_dataset():
+                logger.error(f"Failed to create required dataset {self.dataset_id}")
+                return False
+
+        try:
+            # Check if table already exists
+            try:
+                existing_table = self.client.get_table(table_id)
+                logger.info(
+                    f"Table {table_id} already exists. Created: {existing_table.created}, "
+                    f"Rows: {existing_table.num_rows}, Size: {existing_table.num_bytes} bytes"
+                )
+                return True
+            except NotFound:
+                logger.info(f"Table {table_id} not found, proceeding with creation")
+
+            # Define schema based on totals_schema.json (upper-case column names)
+            schema = [
+                bigquery.SchemaField("SEASON_YEAR", "STRING", mode="REQUIRED"),
+                bigquery.SchemaField("TEAM_ID", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("TEAM_ABBREVIATION", "STRING", mode="REQUIRED"),
+                bigquery.SchemaField("TEAM_NAME", "STRING", mode="REQUIRED"),
+                bigquery.SchemaField("GAME_ID", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("GAME_DATE", "DATETIME", mode="REQUIRED"),
+                bigquery.SchemaField("MATCHUP", "STRING", mode="REQUIRED"),
+                bigquery.SchemaField("WL", "STRING", mode="REQUIRED"),
+                bigquery.SchemaField("MIN", "FLOAT64", mode="REQUIRED"),
+                bigquery.SchemaField("FGM", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("FGA", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("FG_PCT", "FLOAT64", mode="REQUIRED"),
+                bigquery.SchemaField("FG3M", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("FG3A", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("FG3_PCT", "FLOAT64", mode="REQUIRED"),
+                bigquery.SchemaField("FTM", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("FTA", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("FT_PCT", "FLOAT64", mode="REQUIRED"),
+                bigquery.SchemaField("OREB", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("DREB", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("REB", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("AST", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("TOV", "FLOAT64", mode="REQUIRED"),
+                bigquery.SchemaField("STL", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("BLK", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("BLKA", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("PF", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("PFD", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("PTS", "INT64", mode="REQUIRED"),
+                bigquery.SchemaField("PLUS_MINUS", "FLOAT64", mode="REQUIRED"),
+                bigquery.SchemaField("GP_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("W_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("L_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("W_PCT_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("MIN_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FGM_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FGA_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FG_PCT_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FG3M_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FG3A_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FG3_PCT_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FTM_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FTA_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("FT_PCT_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("OREB_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("DREB_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("REB_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("AST_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("TOV_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("STL_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("BLK_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("BLKA_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("PF_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("PFD_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("PTS_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("PLUS_MINUS_RANK", "INT64", mode="NULLABLE"),
+                bigquery.SchemaField("AVAILABLE_FLAG", "FLOAT64", mode="NULLABLE"),
+            ]
+
+            logger.debug(
+                f"Defined totals schema with {len(schema)} fields: {[f.name for f in schema]}"
+            )
+
+            table = bigquery.Table(table_id, schema=schema)
+
+            # Partition by game date if available
+            table.time_partitioning = bigquery.TimePartitioning(
+                type_=bigquery.TimePartitioningType.DAY,
+                field="GAME_DATE",
+            )
+            logger.debug("Configured time partitioning by GAME_DATE (DAY)")
+
+            # Cluster by common query dimensions
+            table.clustering_fields = ["TEAM_ID", "SEASON_YEAR"]
+            logger.debug(f"Configured clustering by: {table.clustering_fields}")
+
+            # Expiration policies similar to players_raw
+            table.default_partition_expiration = 31536000  # 365 days
+            table.default_table_expiration = 31536000      # 365 days
+
+            table.description = (
+                "Team-level game totals derived from NBA game box scores"
+            )
+
+            logger.info(f"Creating table {table_id} with partitioning and clustering...")
+            created_table = self.client.create_table(table, exists_ok=True)
+
+            duration = (datetime.now() - start_time).total_seconds()
+            logger.info(f"✅ Successfully created table {table_id} in {duration:.2f}s")
+            logger.info(
+                f"Table details - Location: {created_table.location}, Schema fields: {len(created_table.schema)}"
+            )
+            return True
+
+        except Conflict as e:
+            logger.warning(
+                f"Table {table_id} exists with conflicting configuration: {str(e)}"
+            )
+            return True
+        except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds()
+            logger.error(
+                f"❌ Failed to create table {table_id} after {duration:.2f}s: {str(e)}"
+            )
+            logger.error(f"Error type: {type(e).__name__}")
+            return False
+
+    def load_csv_files(self, csv_patterns: List[str], table_name: str = "players_raw") -> Dict[str, Any]:
         """
         Load CSV files into BigQuery with comprehensive logging and error handling.
         
         Args:
             csv_patterns: List of CSV file patterns to load from GCS
+            table_name: Target table name (default: "players_raw")
             
         Returns:
             Dict containing load statistics and results
         """
         overall_start_time = datetime.now()
-        table_id = f"{self.dataset_id}.players_raw"
+        table_id = f"{self.dataset_id}.{table_name}"
         
         logger.info(f"Starting CSV load operation for {len(csv_patterns)} file(s) into {table_id}")
         logger.debug(f"File patterns: {csv_patterns}")
@@ -412,6 +557,167 @@ class NBABigQueryLoader:
         if results["total_bytes_processed"] > 0:
             overall_throughput = (results["total_bytes_processed"] / (1024 * 1024)) / overall_duration
             logger.debug(f"Overall throughput: {overall_throughput:.2f} MB/s")
+        
+        return results
+
+    def load_totals_csv_files(self, csv_patterns: List[str]) -> Dict[str, Any]:
+        """
+        Load team totals CSV files into BigQuery totals table.
+        
+        Args:
+            csv_patterns: List of CSV file patterns to load from GCS
+            
+        Returns:
+            Dict containing load statistics and results
+        """
+        overall_start_time = datetime.now()
+        table_id = f"{self.dataset_id}.totals"
+        
+        logger.info(f"Starting team totals CSV load operation for {len(csv_patterns)} file(s) into {table_id}")
+        logger.debug(f"File patterns: {csv_patterns}")
+        
+        results = {
+            "total_files": len(csv_patterns),
+            "successful_loads": 0,
+            "failed_loads": 0,
+            "total_rows_loaded": 0,
+            "total_bytes_processed": 0,
+            "job_details": [],
+            "errors": []
+        }
+        
+        for i, csv_pattern in enumerate(csv_patterns, 1):
+            file_start_time = datetime.now()
+            uri = f"gs://nba-analytics-csv-staging/{csv_pattern}"
+            
+            logger.info(f"📁 Processing totals file {i}/{len(csv_patterns)}: {csv_pattern}")
+            logger.debug(f"Source URI: {uri}")
+            
+            try:
+                # Configure load job for totals table
+                job_config = bigquery.LoadJobConfig(
+                    source_format=bigquery.SourceFormat.CSV,
+                    skip_leading_rows=1,
+                    autodetect=False,  # Use our defined schema
+                    allow_quoted_newlines=True,
+                    allow_jagged_rows=False,
+                    max_bad_records=1000,
+                    create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
+                    write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+                )
+                
+                logger.debug(f"Job config: skip_rows=1, max_bad_records=1000, "
+                           f"disposition=APPEND, autodetect=False")
+                
+                # Submit load job
+                logger.info(f"🚀 Submitting totals load job for {csv_pattern}...")
+                load_job = self.client.load_table_from_uri(
+                    uri, table_id, job_config=job_config
+                )
+                
+                logger.info(f"Job submitted with ID: {load_job.job_id}")
+                logger.debug(f"Job location: {load_job.location}")
+                
+                # Wait for job completion with progress logging
+                logger.info(f"⏳ Waiting for totals job {load_job.job_id} to complete...")
+                
+                try:
+                    result = load_job.result(timeout=300)  # 5 minute timeout
+                    
+                    # Calculate metrics
+                    file_duration = (datetime.now() - file_start_time).total_seconds()
+                    rows_loaded = getattr(load_job, 'output_rows', 0) or 0
+                    
+                    # Handle different attribute names across BigQuery Python client versions
+                    bytes_processed = 0
+                    for attr in ['total_bytes_processed', 'input_file_bytes', 'input_files']:
+                        if hasattr(load_job, attr):
+                            val = getattr(load_job, attr)
+                            if isinstance(val, (int, float)) and val > 0:
+                                bytes_processed = val
+                                break
+                    
+                    # Log success metrics
+                    logger.info(f"✅ Successfully loaded totals file {csv_pattern}")
+                    logger.info(f"📊 Load metrics: {rows_loaded:,} rows, "
+                              f"{bytes_processed:,} bytes, {file_duration:.2f}s")
+                    
+                    if bytes_processed > 0:
+                        throughput_mb_per_sec = (bytes_processed / (1024 * 1024)) / file_duration
+                        logger.debug(f"Throughput: {throughput_mb_per_sec:.2f} MB/s")
+                    
+                    # Update results
+                    results["successful_loads"] += 1
+                    results["total_rows_loaded"] += rows_loaded
+                    results["total_bytes_processed"] += bytes_processed
+                    
+                    job_detail = {
+                        "file": csv_pattern,
+                        "job_id": load_job.job_id,
+                        "status": "success",
+                        "rows_loaded": rows_loaded,
+                        "bytes_processed": bytes_processed,
+                        "duration_seconds": file_duration,
+                        "error": None
+                    }
+                    results["job_details"].append(job_detail)
+                    
+                    # Log any warnings from the job
+                    if hasattr(load_job, 'errors') and load_job.errors:
+                        logger.warning(f"Totals job completed with {len(load_job.errors)} warning(s):")
+                        for error in load_job.errors[:5]:  # Show first 5 warnings
+                            logger.warning(f"   • {error}")
+                    
+                except Exception as job_error:
+                    file_duration = (datetime.now() - file_start_time).total_seconds()
+                    error_msg = f"Failed to load totals file {csv_pattern} after {file_duration:.2f}s: {str(job_error)}"
+                    logger.error(f"❌ {error_msg}")
+                    logger.error(f"Error type: {type(job_error).__name__}")
+                    
+                    # Update results
+                    results["failed_loads"] += 1
+                    results["errors"].append(error_msg)
+                    
+                    job_detail = {
+                        "file": csv_pattern,
+                        "job_id": getattr(load_job, 'job_id', 'unknown'),
+                        "status": "error",
+                        "rows_loaded": 0,
+                        "bytes_processed": 0,
+                        "duration_seconds": file_duration,
+                        "error": str(job_error)
+                    }
+                    results["job_details"].append(job_detail)
+                    
+            except Exception as e:
+                file_duration = (datetime.now() - file_start_time).total_seconds()
+                error_msg = f"Critical error processing totals file {csv_pattern} after {file_duration:.2f}s: {str(e)}"
+                logger.error(f"❌ {error_msg}")
+                logger.error(f"Error type: {type(e).__name__}")
+                
+                # Update results
+                results["failed_loads"] += 1
+                results["errors"].append(error_msg)
+                
+                job_detail = {
+                    "file": csv_pattern,
+                    "job_id": "unknown",
+                    "status": "error",
+                    "rows_loaded": 0,
+                    "bytes_processed": 0,
+                    "duration_seconds": file_duration,
+                    "error": str(e)
+                }
+                results["job_details"].append(job_detail)
+        
+        # Log final summary
+        overall_duration = (datetime.now() - overall_start_time).total_seconds()
+        success_rate = (results["successful_loads"] / results["total_files"]) * 100 if results["total_files"] > 0 else 0
+        
+        logger.info(f"🏁 Team totals CSV load operation completed in {overall_duration:.2f}s")
+        logger.info(f"📊 Final results: {results['successful_loads']}/{results['total_files']} files successful ({success_rate:.1f}%)")
+        logger.info(f"   • Total rows loaded: {results['total_rows_loaded']:,}")
+        logger.info(f"   • Total bytes processed: {results['total_bytes_processed']:,}")
         
         return results
     

@@ -34,11 +34,11 @@ def get_available_csv_files() -> List[str]:
     """
     # Default files - can be extended to check GCS bucket contents
     csv_files = [
-        "regular_season_box_scores_2010_2024_part_1.csv",
-        "regular_season_box_scores_2010_2024_part_2.csv", 
-        "regular_season_box_scores_2010_2024_part_3.csv",
+        # "regular_season_box_scores_2010_2024_part_1.csv",
+        # "regular_season_box_scores_2010_2024_part_2.csv", 
+        # "regular_season_box_scores_2010_2024_part_3.csv",
         # "play_off_box_scores_2010_2024.csv",
-        # "regular_season_totals_2010_2024.csv", # Different schema - team totals
+        "regular_season_totals_2010_2024.csv", # Different schema - team totals
         # "play_off_totals_2010_2024.csv" # Different schema - team totals
     ]
     
@@ -46,10 +46,29 @@ def get_available_csv_files() -> List[str]:
     return csv_files
 
 
+def get_available_totals_csv_files() -> List[str]:
+    """
+    Get list of available NBA team totals CSV files to load.
+    
+    Returns:
+        List of CSV file names in the expected GCS bucket
+    """
+    # Team totals files - use the cleaned version
+    csv_files = [
+        "regular_season_totals_2010_2024_cleaned.csv",
+        # "play_off_totals_2010_2024.csv"
+    ]
+    
+    logger.debug(f"Available team totals CSV files for loading: {csv_files}")
+    return csv_files
+
+
 def load_nba_data(project_id: Optional[str] = None,
                  csv_files: Optional[List[str]] = None,
                  create_table: bool = True,
-                 create_dataset: bool = True) -> bool:
+                 create_dataset: bool = True,
+                 create_totals_table: bool = False,
+                 load_totals_data: bool = False) -> bool:
     """
     Load NBA data into BigQuery with comprehensive logging.
     
@@ -98,10 +117,36 @@ def load_nba_data(project_id: Optional[str] = None,
                 return False
             
             logger.info("✅ Table creation completed")
+
+        # Optionally create team totals table
+        if create_totals_table:
+            logger.info("🏗️  Creating BigQuery team totals table...")
+            totals_created = loader.create_totals_table()
+
+            if not totals_created:
+                logger.error("❌ Failed to create BigQuery team totals table")
+                return False
+
+            logger.info("✅ Team totals table creation completed")
         
         # Load CSV files
         logger.info("📤 Starting CSV file loading...")
         load_results = loader.load_csv_files(files_to_load)
+        
+        # Optionally load team totals data
+        if load_totals_data:
+            logger.info("📤 Starting team totals CSV file loading...")
+            totals_files = get_available_totals_csv_files()
+            totals_load_results = loader.load_totals_csv_files(totals_files)
+            
+            # Combine results
+            load_results["total_files"] += totals_load_results["total_files"]
+            load_results["successful_loads"] += totals_load_results["successful_loads"]
+            load_results["failed_loads"] += totals_load_results["failed_loads"]
+            load_results["total_rows_loaded"] += totals_load_results["total_rows_loaded"]
+            load_results["total_bytes_processed"] += totals_load_results["total_bytes_processed"]
+            load_results["job_details"].extend(totals_load_results["job_details"])
+            load_results["errors"].extend(totals_load_results["errors"])
         
         # Analyze results
         duration = (datetime.now() - start_time).total_seconds()
@@ -175,6 +220,12 @@ Examples:
     
     # Skip dataset and table creation (both already exist)
     python scripts/load_nba_data_to_bq.py --no-create-dataset --no-create-table
+    
+    # Load team totals data only
+    python scripts/load_nba_data_to_bq.py --create-totals-table --load-totals-data
+    
+    # Load both player and team data
+    python scripts/load_nba_data_to_bq.py --create-totals-table --load-totals-data
         """
     )
     
@@ -213,6 +264,17 @@ Examples:
         action="store_true",
         help="Skip table creation step (assumes table already exists)"
     )
+    parser.add_argument(
+        "--create-totals-table",
+        action="store_true",
+        help="Also create 'totals' team-level table based on totals_schema.json",
+    )
+    
+    parser.add_argument(
+        "--load-totals-data",
+        action="store_true",
+        help="Also load team totals CSV data into the totals table",
+    )
     
     parser.add_argument(
         "--verbose",
@@ -235,6 +297,8 @@ Examples:
     logger.info(f"Project ID: {args.project_id or 'default'}")
     logger.info(f"Create dataset: {not args.no_create_dataset}")
     logger.info(f"Create table: {not args.no_create_table}")
+    logger.info(f"Create totals table: {args.create_totals_table}")
+    logger.info(f"Load totals data: {args.load_totals_data}")
     
     # Parse CSV files
     csv_files = None
@@ -250,7 +314,9 @@ Examples:
             project_id=args.project_id,
             csv_files=csv_files,
             create_dataset=not args.no_create_dataset,
-            create_table=not args.no_create_table
+            create_table=not args.no_create_table,
+            create_totals_table=args.create_totals_table,
+            load_totals_data=args.load_totals_data,
         )
         
         if success:
