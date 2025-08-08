@@ -23,13 +23,14 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = [
     "psycopg2-binary>=2.9.9",
-    "SQLAlchemy>=2.0.23", 
+    "SQLAlchemy>=2.0.23",
     "alembic>=1.12.1",
     "pandas>=2.1.4",
     "numpy>=1.24.4",
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.2",
     "click>=8.1.7",
+    "google-cloud-bigquery>=3.35.1",
 ]
 
 [project.optional-dependencies]

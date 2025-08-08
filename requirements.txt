@@ -21,6 +21,9 @@ pydantic>=2.11.0
 # CLI utilities
 click>=8.2.0
 
+# Google Cloud BigQuery
+google-cloud-bigquery>=3.13.0
+
 # Development tools
 black>=23.11.0
 flake8>=6.1.0
