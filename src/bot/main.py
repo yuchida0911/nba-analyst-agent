@@ -38,8 +38,7 @@ try:
         """ Handle app mention event """
         logging.info(f"Received event: {body}")
         box = Box(body)
-        user = box.event.user
-        thread_ts = box.event.thread_ts or box.event.ts
+        thread_ts = box.event.ts
         only_text = re.sub(r"<@[A-Z0-9]+>", "", box.event.text)
 
         # Add reaction to the message (like Cursor)
