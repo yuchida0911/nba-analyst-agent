@@ -3,13 +3,45 @@ from __future__ import annotations
 """
 NBA Analytics tools for Google ADK.
 
-This module exposes FunctionTool-wrapped functions that the agent can call to:
-- Run parameterized BigQuery queries
-- Retrieve player and team stats from the `nba_analytics.players_raw` table
-- Compute advanced analytics summaries (efficiency and defense) using
-  in-repo implementations under `nba_analyst.analytics`
+This module provides a comprehensive suite of basketball analytics tools that enable
+AI agents to perform sophisticated NBA data analysis. The tools are organized into
+several categories:
 
-All tools return JSON-serializable dicts with a `status` field.
+BASIC DATA RETRIEVAL:
+- get_player_stats: Individual player game logs and statistics
+- get_player_stats_by_season: Season-by-season player averages
+- get_team_stats: Team-level game statistics and performance
+- get_player_monthly_trends: Month-by-month performance trends
+
+ADVANCED PLAYER ANALYSIS:
+- analyze_player_efficiency: Comprehensive shooting and scoring efficiency
+- analyze_player_defense: Defensive impact and contribution analysis
+- compare_players_advanced_metrics: Side-by-side player comparisons
+- predict_player_performance: Performance prediction based on trends
+- calculate_advanced_basketball_metrics: Advanced metrics (PER, TS%, etc.)
+
+TEAM ANALYSIS:
+- analyze_team_performance_trends: Team performance over time
+- analyze_lineup_effectiveness: Team roster and lineup analysis
+
+PLAYER-TEAM COMBINED ANALYSIS:
+- analyze_player_team_impact: Player's contribution to team performance
+- analyze_player_team_synergy: Player-team fit and compatibility
+- compare_teams_player_impact: How different teams utilize players
+- analyze_team_offensive_efficiency_by_player_contribution: Individual impact on team efficiency
+
+STATISTICAL ANALYSIS:
+- analyze_statistical_correlations: Statistical relationships in player data
+- cluster_players_by_playing_style: Group players by statistical similarity
+- analyze_player_performance_by_game_situation: Situational performance analysis
+
+CUSTOM QUERIES:
+- run_query: Execute custom BigQuery SQL
+- get_query_status: Check query execution status
+- get_query_results: Retrieve custom query results
+
+All tools return JSON-serializable dictionaries with a `status` field indicating
+success or error, along with relevant data and analysis results.
 """
 
 from dataclasses import asdict
@@ -78,14 +110,31 @@ def _row_to_player_game_stats(row: bigquery.table.Row) -> PlayerGameStats:
 
 
 def run_query(query: str, project_id: Optional[str] = None) -> Dict[str, Any]:
-    """Run a BigQuery SQL query.
+    """Execute a BigQuery SQL query asynchronously.
+
+    Use this tool when you need to run custom SQL queries against the NBA dataset.
+    This is useful for complex analysis that isn't covered by other specialized tools.
+    
+    The query runs asynchronously - use get_query_status and get_query_results 
+    to check completion and retrieve results.
 
     Args:
-        query: BigQuery SQL query string.
+        query: BigQuery SQL query string. Available tables:
+               - `nba_analytics.players_raw`: Individual player game statistics
+               - `nba_analytics.totals`: Team-level game statistics
         project_id: Optional GCP project ID. Defaults to env/default.
 
     Returns:
-        dict with keys: status, job_id, project_id, location
+        dict with keys:
+        - status: "success" or "error"
+        - job_id: BigQuery job ID for tracking
+        - project_id: GCP project used
+        - location: BigQuery job location
+        - message: Error message if status is "error"
+        
+    Example Usage:
+        Use for custom analysis like "Find games where a team scored over 140 points"
+        or "Calculate league-wide shooting percentages by month".
     """
     try:
         client = _bq_client(project_id)
@@ -101,7 +150,28 @@ def run_query(query: str, project_id: Optional[str] = None) -> Dict[str, Any]:
 
 
 def get_query_status(job_id: str, project_id: Optional[str] = None, location: Optional[str] = None) -> Dict[str, Any]:
-    """Get status for a BigQuery query job."""
+    """Check the execution status of a BigQuery query job.
+
+    Use this tool after running a query with run_query to check if it has completed.
+    This is essential for asynchronous query execution workflow.
+
+    Args:
+        job_id: BigQuery job ID returned from run_query
+        project_id: Optional GCP project ID
+        location: Optional BigQuery job location
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - job_id: The query job ID
+        - state: Job state ("PENDING", "RUNNING", "DONE")
+        - done: Boolean indicating if job is complete
+        - error_result: Error details if job failed
+        - message: Error message if status is "error"
+        
+    Example Usage:
+        Check if a long-running analysis query has finished before retrieving results.
+    """
     try:
         client = _bq_client(project_id)
         job = client.get_job(job_id, location=location)
@@ -119,7 +189,28 @@ def get_query_status(job_id: str, project_id: Optional[str] = None, location: Op
 
 
 def get_query_results(job_id: str, project_id: Optional[str] = None, location: Optional[str] = None, max_rows: int = 1000) -> Dict[str, Any]:
-    """Fetch results for a BigQuery query job as list of records."""
+    """Retrieve the results of a completed BigQuery query job.
+
+    Use this tool to get the actual data from a query after confirming it's done
+    with get_query_status. This completes the asynchronous query workflow.
+
+    Args:
+        job_id: BigQuery job ID from run_query
+        project_id: Optional GCP project ID
+        location: Optional BigQuery job location
+        max_rows: Maximum number of rows to return (default: 1000)
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - job_id: The query job ID
+        - row_count: Number of rows returned
+        - records: List of dictionaries containing query results
+        - message: Error message if status is "error"
+        
+    Example Usage:
+        Get results after a custom analysis query completes successfully.
+    """
     try:
         client = _bq_client(project_id)
         job = client.get_job(job_id, location=location)
@@ -156,15 +247,37 @@ def get_query_results(job_id: str, project_id: Optional[str] = None, location: O
 
 
 def get_player_stats(player_name: str, season_year: Optional[str] = None, limit: int = 50, project_id: Optional[str] = None) -> Dict[str, Any]:
-    """Get recent game logs for a player from players_raw.
+    """Retrieve individual game statistics for a specific player.
+
+    This is the primary tool for getting detailed game-by-game performance data
+    for any NBA player. Use this when you need to analyze recent performance,
+    game logs, or individual game statistics.
 
     Args:
-        player_name: Case-insensitive substring match on `personName`.
-        season_year: Optional season filter like '2015-16'.
-        limit: Max number of rows to return (most recent first).
+        player_name: Player name (case-insensitive, partial matches work)
+                    Examples: "LeBron James", "LeBron", "James"
+        season_year: Optional season filter in format "YYYY-YY" 
+                    Examples: "2023-24", "2022-23"
+        limit: Maximum number of games to return (default: 50, most recent first)
+        project_id: Optional GCP project ID
 
     Returns:
-        dict with basic box score fields and dates.
+        dict with keys:
+        - status: "success" or "error"
+        - player: Player name searched
+        - season_year: Season filter applied (if any)
+        - count: Number of games returned
+        - records: List of game statistics including:
+          * game_date, season_year, personName, teamTricode
+          * minutes, points, rebounds, assists, steals, blocks
+          * field goals, three-pointers, free throws (made/attempted)
+          * turnovers, fouls, plus/minus
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "Show me LeBron's last 10 games"
+        - "Get Stephen Curry's 2023-24 season games"
+        - "What did Giannis score in his recent games?"
     """
     try:
         client = _bq_client(project_id)
@@ -204,7 +317,32 @@ def get_player_stats(player_name: str, season_year: Optional[str] = None, limit:
 
 
 def get_player_stats_by_season(player_name: str, project_id: Optional[str] = None) -> Dict[str, Any]:
-    """Get per-season averages for a player from players_raw."""
+    """Get season-by-season statistical averages for a player.
+
+    This tool provides aggregated season statistics rather than individual games.
+    Use this when you want to see a player's career progression, compare seasons,
+    or get overall performance metrics across multiple years.
+
+    Args:
+        player_name: Player name (case-insensitive, partial matches work)
+        project_id: Optional GCP project ID
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - player: Player name searched
+        - by_season: List of season statistics including:
+          * season_year, games_played
+          * avg_points, avg_rebounds, avg_assists, avg_steals, avg_blocks
+          * avg_fg_pct, avg_3p_pct, avg_ft_pct, avg_ts_pct (True Shooting %)
+          * avg_turnovers
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "Show me LeBron's career averages by season"
+        - "How has Curry's three-point shooting changed over the years?"
+        - "Compare Giannis's rookie season to his MVP seasons"
+    """
     try:
         client = _bq_client(project_id)
         name_esc = player_name.replace("'", "\'")
@@ -238,9 +376,38 @@ def get_player_stats_by_season(player_name: str, project_id: Optional[str] = Non
 
 
 def get_team_stats(team_identifier: str, season_year: Optional[str] = None, limit: int = 50, project_id: Optional[str] = None) -> Dict[str, Any]:
-    """Get recent team aggregated stats per game.
+    """Get team-level game statistics and performance data.
 
-    team_identifier can be a numeric teamId, a 3-letter teamTricode, or a teamSlug.
+    This tool retrieves team aggregated statistics per game from the totals table.
+    Use this when you need team performance data, game results, or team-level
+    statistical analysis rather than individual player stats.
+
+    Args:
+        team_identifier: Team identifier in one of these formats:
+                        - Team ID (numeric): "1610612744"
+                        - Team abbreviation (3 letters): "GSW", "LAL", "BOS"
+                        - Team name: "Golden State Warriors", "Lakers"
+        season_year: Optional season filter in format "YYYY-YY"
+        limit: Maximum number of games to return (default: 50, most recent first)
+        project_id: Optional GCP project ID
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - team: Team identifier searched
+        - season_year: Season filter applied (if any)
+        - count: Number of games returned
+        - records: List of team game statistics including:
+          * GAME_DATE, SEASON_YEAR, TEAM_ID, teamTricode
+          * points, rebounds, assists, steals, blocks, turnovers
+          * fgm, fga, tpm, tpa, ftm, fta (field goals, three-pointers, free throws)
+          * efg_pct (Effective Field Goal Percentage)
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "Show me the Lakers' recent game results"
+        - "Get Golden State Warriors' 2023-24 season stats"
+        - "How many points did the Celtics average this season?"
     """
     try:
         client = _bq_client(project_id)
@@ -293,7 +460,32 @@ def get_team_stats(team_identifier: str, season_year: Optional[str] = None, limi
 
 
 def get_player_monthly_trends(player_name: str, project_id: Optional[str] = None, limit_months: int = 12) -> Dict[str, Any]:
-    """Compute monthly averages and TS% for a player from players_raw."""
+    """Analyze player performance trends by month over time.
+
+    This tool shows how a player's performance changes month by month, revealing
+    seasonal patterns, hot streaks, slumps, and overall trends. Perfect for
+    identifying when players perform best during the season.
+
+    Args:
+        player_name: Player name (case-insensitive, partial matches work)
+        project_id: Optional GCP project ID
+        limit_months: Maximum number of months to return (default: 12, most recent first)
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - player: Player name searched
+        - months: List of monthly statistics including:
+          * month_year (format: "YYYY-MM"), season_year, games_played
+          * avg_points, avg_rebounds, avg_assists
+          * avg_fg_pct, avg_3p_pct, avg_ts_pct (True Shooting %)
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "How has Curry performed each month this season?"
+        - "Show me LeBron's monthly trends over the last year"
+        - "When does Giannis typically play his best basketball?"
+    """
     try:
         client = _bq_client(project_id)
         name_esc = player_name.replace("'", "\'")
@@ -325,7 +517,37 @@ def get_player_monthly_trends(player_name: str, project_id: Optional[str] = None
 
 
 def analyze_player_efficiency(player_name: str, season_year: Optional[str] = None, last_n_games: int = 20, project_id: Optional[str] = None) -> Dict[str, Any]:
-    """Analyze player efficiency using True Shooting-based trends across recent games."""
+    """Comprehensive efficiency analysis using advanced basketball metrics.
+
+    This tool provides detailed efficiency analysis including True Shooting percentage,
+    shooting trends, volume vs. efficiency trade-offs, and performance consistency.
+    Use this for deep dives into how efficiently a player scores and contributes.
+
+    Args:
+        player_name: Player name (case-insensitive, partial matches work)
+        season_year: Optional season filter in format "YYYY-YY"
+        last_n_games: Number of recent games to analyze (default: 20)
+        project_id: Optional GCP project ID
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - player: Player name searched
+        - season_year: Season filter applied (if any)
+        - summary: Detailed efficiency analysis including:
+          * overall_efficiency: Overall efficiency metrics
+          * shooting_analysis: Shooting efficiency breakdown
+          * volume_analysis: Shot volume vs. efficiency
+          * consistency_metrics: Performance consistency measures
+          * best_game: Most efficient game performance
+          * worst_game: Least efficient game performance
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "How efficient has Curry been in his last 15 games?"
+        - "Analyze LeBron's shooting efficiency this season"
+        - "Is Giannis more efficient on high or low shot volume?"
+    """
     try:
         # Fetch recent game logs
         stats_resp = get_player_stats(player_name=player_name, season_year=season_year, limit=last_n_games, project_id=project_id)
@@ -355,7 +577,37 @@ def analyze_player_efficiency(player_name: str, season_year: Optional[str] = Non
 
 
 def analyze_player_defense(player_name: str, season_year: Optional[str] = None, last_n_games: int = 20, project_id: Optional[str] = None) -> Dict[str, Any]:
-    """Analyze player defensive strengths using composite defensive impact across recent games."""
+    """Comprehensive defensive impact analysis for a player.
+
+    This tool evaluates a player's defensive contributions including steals, blocks,
+    rebounds, and overall defensive impact. Provides per-36 minute rates and
+    defensive strengths assessment. Use this for defensive-focused analysis.
+
+    Args:
+        player_name: Player name (case-insensitive, partial matches work)
+        season_year: Optional season filter in format "YYYY-YY"
+        last_n_games: Number of recent games to analyze (default: 20)
+        project_id: Optional GCP project ID
+
+    Returns:
+        dict with keys:
+        - status: "success" or "error"
+        - player: Player name searched
+        - season_year: Season filter applied (if any)
+        - latest_game_analysis: Detailed analysis of most recent game including:
+          * defensive_strengths: Primary defensive skills
+          * impact_score: Overall defensive impact rating
+          * steal_impact, block_impact, rebound_impact: Specific skill impacts
+        - recent_sample_summary: Averages across recent games including:
+          * games_analyzed, avg_minutes
+          * steals_per_36, blocks_per_36, def_reb_per_36, fouls_per_36
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "How good is Giannis defensively this season?"
+        - "Analyze Draymond Green's defensive impact"
+        - "What are Rudy Gobert's defensive strengths?"
+    """
     try:
         stats_resp = get_player_stats(player_name=player_name, season_year=season_year, limit=last_n_games, project_id=project_id)
         if stats_resp.get("status") != "success" or not stats_resp.get("records"):
@@ -410,16 +662,38 @@ def compare_players_advanced_metrics(
     project_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Compare advanced metrics between multiple players.
+    Side-by-side comparison of advanced metrics between multiple players.
+    
+    This tool compares players across various statistical categories with rankings
+    and percentages. Perfect for player debates, draft analysis, trade evaluations,
+    or identifying the best performers in specific areas.
     
     Args:
-        player_names: List of player names to compare
-        season_year: Optional season filter
-        metric_type: Type of metrics to compare ("scoring", "defensive", "efficiency", "all")
-        project_id: GCP project ID
+        player_names: List of player names to compare (minimum 2 players)
+                     Examples: ["LeBron James", "Kevin Durant", "Giannis"]
+        season_year: Optional season filter in format "YYYY-YY"
+        metric_type: Type of metrics to focus on:
+                    - "scoring": Points, shooting percentages, True Shooting %
+                    - "defensive": Steals, blocks, defensive rebounds, defensive impact
+                    - "efficiency": Per-minute production rates
+                    - "all": Comprehensive comparison across all categories
+        project_id: Optional GCP project ID
         
     Returns:
-        Comparison analysis results
+        dict with keys:
+        - status: "success" or "error"
+        - players: List of players compared
+        - season_year: Season filter applied (if any)
+        - metric_type: Type of comparison performed
+        - comparison_data: Statistical data for each player
+        - rankings: Player rankings for each metric (1 = best)
+        - count: Number of players successfully found
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "Compare LeBron James and Michael Jordan's scoring"
+        - "Who's better defensively: Giannis or Rudy Gobert?"
+        - "Compare the efficiency of Curry, Dame, and Trae Young"
     """
     try:
         if len(player_names) < 2:
@@ -1293,16 +1567,40 @@ def analyze_player_team_impact(
     project_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Analyze player's impact on team performance by combining player and team data.
+    Analyze how much a player contributes to their team's overall performance.
+    
+    This advanced tool combines individual player stats with team totals to calculate
+    contribution percentages, impact ratios, and role classifications. Essential for
+    understanding a player's value within their team context.
     
     Args:
-        player_name: Player name
-        season_year: Optional season filter
-        impact_type: Impact analysis type ("scoring", "defensive", "comprehensive")
-        project_id: GCP project ID
+        player_name: Player name (case-insensitive, partial matches work)
+        season_year: Optional season filter in format "YYYY-YY"
+        impact_type: Type of impact analysis:
+                    - "scoring": Focus on scoring contribution and efficiency
+                    - "defensive": Focus on defensive impact and rebounding
+                    - "comprehensive": Full analysis across all categories
+        project_id: Optional GCP project ID
         
     Returns:
-        Player-team impact analysis
+        dict with keys:
+        - status: "success" or "error"
+        - player: Player name analyzed
+        - season_year: Season filter applied (if any)
+        - impact_type: Type of analysis performed
+        - team_impact_data: Raw statistical data including:
+          * games_played, player/team averages
+          * contribution ratios (scoring_contribution, assist_contribution, etc.)
+          * efficiency metrics
+        - impact_analysis: Interpreted analysis including:
+          * scoring_impact: Role classification (Primary Scorer, Role Player, etc.)
+          * defensive_impact: Defensive role (Defensive Anchor, Good Defender, etc.)
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "How much does LeBron contribute to the Lakers' scoring?"
+        - "What's Giannis's impact on the Bucks' defense?"
+        - "Analyze Curry's overall contribution to Golden State"
     """
     try:
         client = _bq_client(project_id)
@@ -1676,16 +1974,44 @@ def compare_teams_player_impact(
     project_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Compare how different teams utilize their players by analyzing player-team data.
+    Compare how different teams structure their rosters and utilize players.
+    
+    This tool reveals team philosophies by analyzing player distribution patterns,
+    identifying whether teams rely on superstars, have balanced scoring, or
+    emphasize specific aspects like defense. Great for team strategy analysis.
     
     Args:
-        team_identifiers: List of team identifiers to compare
-        season_year: Optional season filter
-        comparison_type: Comparison type ("scoring", "defensive", "comprehensive")
-        project_id: GCP project ID
+        team_identifiers: List of team identifiers to compare (minimum 2)
+                         Can use team abbreviations: ["GSW", "LAL", "BOS"]
+                         Or team IDs or names
+        season_year: Optional season filter in format "YYYY-YY"
+        comparison_type: Focus area for comparison:
+                        - "scoring": Scoring distribution and primary scorers
+                        - "defensive": Defensive roles and anchors
+                        - "comprehensive": Overall player utilization patterns
+        project_id: Optional GCP project ID
         
     Returns:
-        Team player utilization comparison
+        dict with keys:
+        - status: "success" or "error"
+        - teams: List of teams compared
+        - season_year: Season filter applied (if any)
+        - comparison_type: Type of comparison performed
+        - team_comparison_data: Statistical data for each team including:
+          * unique_players, total_games, average statistics
+          * primary_scorers, secondary_scorers (for scoring type)
+          * defensive_anchors, good_defenders (for defensive type)
+        - utilization_patterns: Team philosophy classification:
+          * "Multiple Primary Scorers", "Single Primary Scorer"
+          * "Balanced Scoring", "Role Player Heavy"
+          * "Multiple Defensive Anchors", "Offensive Focused"
+        - count: Number of teams successfully analyzed
+        - message: Error message if status is "error"
+
+    Example Usage:
+        - "Compare how the Lakers and Warriors use their players"
+        - "Which teams have the most balanced scoring?"
+        - "How do defensive-focused teams structure their rosters?"
     """
     try:
         if len(team_identifiers) < 2:
