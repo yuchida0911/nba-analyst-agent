@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from nba_analyst.ingestion.ingest import (
+from analytics_pipeline.ingestion.ingest import (
     NBADataIngestion, IngestionStats, IngestionResult, create_ingestion_pipeline
 )
 

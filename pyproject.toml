@@ -49,8 +49,8 @@ Repository = "https://github.com/yuchida-tamu/nba-analyst-agent.git"
 Issues = "https://github.com/yuchida-tamu/nba-analyst-agent/issues"
 
 [project.scripts]
-nba-ingest = "nba_analyst.cli:ingest"
-nba-validate = "nba_analyst.cli:validate"
+nba-ingest = "analytics_pipeline.cli:ingest"
+nba-validate = "analytics_pipeline.cli:validate"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -96,4 +96,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --cov=src/nba_analyst --cov-report=term-missing --cov-report=html"
+addopts = "-v --cov=src/analytics_pipeline --cov-report=term-missing --cov-report=html"

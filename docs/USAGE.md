@@ -52,7 +52,7 @@ python scripts/create_database.py
 
 ### 2. Ingest Sample Data
 ```python
-from nba_analyst.ingestion.ingest import create_ingestion_pipeline
+from analytics_pipeline.ingestion.ingest import create_ingestion_pipeline
 
 # Create ingestion pipeline
 pipeline = create_ingestion_pipeline(
@@ -108,7 +108,7 @@ print(f"Rows ingested: {result.stats.rows_inserted}")
 
 #### Simple Ingestion
 ```python
-from nba_analyst.ingestion.ingest import create_ingestion_pipeline
+from analytics_pipeline.ingestion.ingest import create_ingestion_pipeline
 
 pipeline = create_ingestion_pipeline()
 
@@ -123,8 +123,8 @@ else:
 
 #### Custom Configuration
 ```python
-from nba_analyst.ingestion.ingest import NBADataIngestion
-from nba_analyst.database.connection import get_database_connection
+from analytics_pipeline.ingestion.ingest import NBADataIngestion
+from analytics_pipeline.database.connection import get_database_connection
 
 # Custom database connection
 db_conn = get_database_connection()
@@ -226,12 +226,12 @@ MAX_ERROR_RATE=0.01       # Maximum acceptable error rate
 #### Logging Settings
 ```
 LOG_LEVEL=INFO            # Logging level
-LOG_FILE=./logs/nba_analyst.log  # Log file path
+LOG_FILE=./logs/analytics_pipeline.log  # Log file path
 ```
 
 ### Programmatic Configuration
 ```python
-from nba_analyst.config.settings import Settings
+from analytics_pipeline.config.settings import Settings
 
 # Create custom settings
 settings = Settings(

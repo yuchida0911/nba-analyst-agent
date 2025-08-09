@@ -9,9 +9,9 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from nba_analyst.ingestion.csv_reader import NBACSVReader
-from nba_analyst.ingestion.ingest import NBADataIngestion
-from nba_analyst.database.models import PlayerBoxScore
+from analytics_pipeline.ingestion.csv_reader import NBACSVReader
+from analytics_pipeline.ingestion.ingest import NBADataIngestion
+from analytics_pipeline.database.models import PlayerBoxScore
 
 def main():
     print("🔍 Debugging column name issues...")

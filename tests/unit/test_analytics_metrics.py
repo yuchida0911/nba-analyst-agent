@@ -3,7 +3,7 @@
 import pytest
 from datetime import date
 
-from nba_analyst.analytics.metrics import (
+from analytics_pipeline.analytics.metrics import (
     PlayerGameStats,
     calculate_true_shooting_percentage,
     calculate_effective_field_goal_percentage,

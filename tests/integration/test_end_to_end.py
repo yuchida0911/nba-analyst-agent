@@ -4,8 +4,8 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from nba_analyst.ingestion.ingest import create_ingestion_pipeline
-from nba_analyst.database.models import PlayerBoxScore, TeamGameTotal
+from analytics_pipeline.ingestion.ingest import create_ingestion_pipeline
+from analytics_pipeline.database.models import PlayerBoxScore, TeamGameTotal
 
 
 class TestEndToEndIngestion:
@@ -206,8 +206,8 @@ class TestConfigurationIntegration:
     @pytest.mark.integration
     def test_database_configuration_integration(self, test_settings):
         """Test database configuration integration."""
-        from nba_analyst.config.database import DatabaseConfig
-        from nba_analyst.database.connection import DatabaseConnection
+        from analytics_pipeline.config.database import DatabaseConfig
+        from analytics_pipeline.database.connection import DatabaseConnection
         
         # Create database config from settings
         db_config = DatabaseConfig(test_settings)
@@ -228,9 +228,9 @@ class TestConfigurationIntegration:
     @pytest.mark.integration
     def test_ingestion_pipeline_configuration(self):
         """Test ingestion pipeline configuration integration."""
-        from nba_analyst.ingestion.ingest import create_ingestion_pipeline
-        from nba_analyst.ingestion.csv_reader import create_csv_reader
-        from nba_analyst.ingestion.validators import create_validator
+        from analytics_pipeline.ingestion.ingest import create_ingestion_pipeline
+        from analytics_pipeline.ingestion.csv_reader import create_csv_reader
+        from analytics_pipeline.ingestion.validators import create_validator
         
         # Test factory functions work together
         csv_reader = create_csv_reader(chunk_size=500)

@@ -2,7 +2,7 @@
 
 import pytest
 
-from nba_analyst.analytics.defensive import (
+from analytics_pipeline.analytics.defensive import (
     calculate_defensive_impact_score,
     calculate_steal_rate,
     calculate_block_rate,
@@ -11,7 +11,7 @@ from nba_analyst.analytics.defensive import (
     grade_defensive_performance,
     analyze_defensive_strengths
 )
-from nba_analyst.analytics.metrics import PlayerGameStats
+from analytics_pipeline.analytics.metrics import PlayerGameStats
 
 
 class TestDefensiveImpactScore:

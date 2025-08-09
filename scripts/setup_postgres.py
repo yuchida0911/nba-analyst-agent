@@ -17,10 +17,10 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from nba_analyst.config.settings import Settings
-from nba_analyst.config.database import DatabaseConfig
-from nba_analyst.database.connection import DatabaseConnection
-from nba_analyst.database.models import Base
+from analytics_pipeline.config.settings import Settings
+from analytics_pipeline.config.database import DatabaseConfig
+from analytics_pipeline.database.connection import DatabaseConnection
+from analytics_pipeline.database.models import Base
 
 
 def check_env_file() -> bool:

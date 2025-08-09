@@ -17,10 +17,10 @@ from pathlib import Path
 # Add src to path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from nba_analyst.config.settings import load_settings
-from nba_analyst.config.database import get_database_config
-from nba_analyst.database.connection import get_database_connection
-from nba_analyst.database.models import Base, PlayerBoxScore, TeamGameTotal
+from analytics_pipeline.config.settings import load_settings
+from analytics_pipeline.config.database import get_database_config
+from analytics_pipeline.database.connection import get_database_connection
+from analytics_pipeline.database.models import Base, PlayerBoxScore, TeamGameTotal
 
 
 def setup_logging(level: str = "INFO") -> None:

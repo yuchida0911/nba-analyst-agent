@@ -3,7 +3,7 @@
 import pytest
 from datetime import date
 
-from nba_analyst.database.models import PlayerBoxScore, TeamGameTotal
+from analytics_pipeline.database.models import PlayerBoxScore, TeamGameTotal
 
 
 class TestPlayerBoxScore:

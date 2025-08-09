@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import date
 
-from nba_analyst.ingestion.csv_reader import NBACSVReader, CSVReadResult, create_csv_reader
+from analytics_pipeline.ingestion.csv_reader import NBACSVReader, CSVReadResult, create_csv_reader
 
 
 class TestNBACSVReader:

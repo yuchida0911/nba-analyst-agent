@@ -54,9 +54,9 @@ from google.api_core import exceptions as gcloud_exceptions
 
 from google.adk.tools import FunctionTool
 
-from nba_analyst.analytics.metrics import PlayerGameStats
-from nba_analyst.analytics.efficiency import EfficiencyAnalyzer
-from nba_analyst.analytics.defensive import (
+from analytics_pipeline.analytics.metrics import PlayerGameStats
+from analytics_pipeline.analytics.efficiency import EfficiencyAnalyzer
+from analytics_pipeline.analytics.defensive import (
     analyze_defensive_strengths,
 )
 

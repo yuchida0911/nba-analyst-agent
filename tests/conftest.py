@@ -14,10 +14,10 @@ import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from nba_analyst.config.settings import Settings
-from nba_analyst.config.database import DatabaseConfig
-from nba_analyst.database.connection import DatabaseConnection
-from nba_analyst.database.models import Base
+from analytics_pipeline.config.settings import Settings
+from analytics_pipeline.config.database import DatabaseConfig
+from analytics_pipeline.database.connection import DatabaseConnection
+from analytics_pipeline.database.models import Base
 
 
 @pytest.fixture(scope="session")

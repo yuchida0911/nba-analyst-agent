@@ -37,7 +37,7 @@ class Settings(BaseModel):
     
     # Logging Configuration
     log_level: str = Field(default="INFO", description="Logging level")
-    log_file: Optional[Path] = Field(default=Path("./logs/nba_analyst.log"), description="Log file path")
+    log_file: Optional[Path] = Field(default=Path("./logs/analytics_pipeline.log"), description="Log file path")
     log_format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         description="Log format string"

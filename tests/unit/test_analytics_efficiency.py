@@ -3,11 +3,11 @@
 import pytest
 from datetime import date
 
-from nba_analyst.analytics.efficiency import (
+from analytics_pipeline.analytics.efficiency import (
     EfficiencyGame,
     EfficiencyAnalyzer
 )
-from nba_analyst.analytics.metrics import PlayerGameStats
+from analytics_pipeline.analytics.metrics import PlayerGameStats
 
 
 class TestEfficiencyGame:

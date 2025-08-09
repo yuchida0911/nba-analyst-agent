@@ -21,7 +21,7 @@ from typing import List, Optional
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from nba_analyst.ingestion.bq_loader import NBABigQueryLoader
+from analytics_pipeline.ingestion.bq_loader import NBABigQueryLoader
 
 logger = logging.getLogger(__name__)
 

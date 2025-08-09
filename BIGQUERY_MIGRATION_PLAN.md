@@ -965,7 +965,7 @@ def rollback_to_postgresql():
     subprocess.run(['systemctl', 'restart', 'nba-analytics-app'])
     
     # 3. Verify PostgreSQL connectivity
-    from nba_analyst.database.connection import DatabaseConnection
+    from analytics_pipeline.database.connection import DatabaseConnection
     db = DatabaseConnection()
     assert db.test_connection() == True
     

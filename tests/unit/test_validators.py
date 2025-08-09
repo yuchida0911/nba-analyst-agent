@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 from pathlib import Path
 
-from nba_analyst.ingestion.validators import (
+from analytics_pipeline.ingestion.validators import (
     NBADataValidator, ValidationResult, ValidationError, ValidationSeverity, create_validator
 )
 
