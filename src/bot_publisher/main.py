@@ -47,12 +47,26 @@ try:
         # In production, we should consider validating and cleaning the instructions to prevent prompt injection
         instructions = re.sub(r"<@[A-Z0-9]+>", "", box.event.text)
 
-        # Publish message to PubSub topic
+        # Publish message to PubSub topic with Slack metadata as attributes
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, PUBSUB_TOPIC)
-        future = publisher.publish(topic_path, instructions.encode("utf-8"))
+
+        # Create message attributes with Slack metadata
+        attributes = {
+            "thread_ts": thread_ts,
+            "channel": box.event.channel,
+            "user": box.event.user,
+            "message_ts": box.event.ts,
+            "event_type": "app_mention"
+        }
+
+        future = publisher.publish(
+            topic_path, 
+            instructions.encode("utf-8"),
+            **attributes  # Pass attributes as keyword arguments
+        )
         future.result()
-        logging.info(f"Published message to PubSub topic: {topic_path}")
+        logging.info(f"Published message to PubSub topic: {topic_path} with attributes: {attributes}")
 
         # Add reaction to the message (like Cursor)
         try:
@@ -64,9 +78,6 @@ try:
         except Exception as e:
             logging.error(f"Error adding reaction: {e}")
 
-
-        logging.info(f"Only text: {instructions}")
-        say(text=f"Processing...", thread_ts=thread_ts)
 
     # 'hello' を含むメッセージをリッスンします
     @app.message("hello")
