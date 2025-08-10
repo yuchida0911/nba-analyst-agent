@@ -8,6 +8,7 @@ from typing import Union
 import functions_framework
 import google.cloud.logging
 from google.cloud import secretmanager
+from google.cloud import pubsub_v1
 from box import Box
 from flask import Request
 from slack_bolt import App
@@ -26,6 +27,7 @@ def get_secret(project_id: str, secret_id: str, version_id: str = "latest") -> s
 
 # Get Slack token from Secret Manager
 PROJECT_ID = os.environ.get("GCP_PROJECT", "yuchida-dev")
+PUBSUB_TOPIC = "nba-analytics"
 
 try:
     slack_token = get_secret(PROJECT_ID, "SLACK_BOT_TOKEN")
@@ -35,11 +37,22 @@ try:
     # Register event handlers after app initialization
     @app.event("app_mention")
     def handle_app_mention(body: dict, say, client):
-        """ Handle app mention event """
+        """ Handle app mention event 
+        It registers a message to PubSub topic "nba-analytics", which is later on processed by a Cloud Run service.
+        This event handler can not process the message directly since it has a constraint of 3 seconds to respond.
+        """
         logging.info(f"Received event: {body}")
         box = Box(body)
         thread_ts = box.event.ts
-        only_text = re.sub(r"<@[A-Z0-9]+>", "", box.event.text)
+        # In production, we should consider validating and cleaning the instructions to prevent prompt injection
+        instructions = re.sub(r"<@[A-Z0-9]+>", "", box.event.text)
+
+        # Publish message to PubSub topic
+        publisher = pubsub_v1.PublisherClient()
+        topic_path = publisher.topic_path(PROJECT_ID, PUBSUB_TOPIC)
+        future = publisher.publish(topic_path, instructions.encode("utf-8"))
+        future.result()
+        logging.info(f"Published message to PubSub topic: {topic_path}")
 
         # Add reaction to the message (like Cursor)
         try:
@@ -52,7 +65,7 @@ try:
             logging.error(f"Error adding reaction: {e}")
 
 
-        logging.info(f"Only text: {only_text}")
+        logging.info(f"Only text: {instructions}")
         say(text=f"Processing...", thread_ts=thread_ts)
 
     # 'hello' を含むメッセージをリッスンします
