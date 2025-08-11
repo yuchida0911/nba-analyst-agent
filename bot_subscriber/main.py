@@ -9,6 +9,7 @@ import requests
 from google.cloud import secretmanager
 from google.adk.sessions import VertexAiSessionService
 import asyncio
+import vertexai
 from vertexai import agent_engines
 
 
