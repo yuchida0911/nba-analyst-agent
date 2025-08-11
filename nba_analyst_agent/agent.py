@@ -1,70 +1,225 @@
-from __future__ import annotations
-
-"""
-NBA Analytics tools for Google ADK.
-
-This module provides a comprehensive suite of basketball analytics tools that enable
-AI agents to perform sophisticated NBA data analysis. The tools are organized into
-several categories:
-
-BASIC DATA RETRIEVAL:
-- get_player_stats: Individual player game logs and statistics
-- get_player_stats_by_season: Season-by-season player averages
-- get_team_stats: Team-level game statistics and performance
-- get_player_monthly_trends: Month-by-month performance trends
-
-ADVANCED PLAYER ANALYSIS:
-- analyze_player_efficiency: Comprehensive shooting and scoring efficiency
-- analyze_player_defense: Defensive impact and contribution analysis
-- compare_players_advanced_metrics: Side-by-side player comparisons
-- predict_player_performance: Performance prediction based on trends
-- calculate_advanced_basketball_metrics: Advanced metrics (PER, TS%, etc.)
-
-TEAM ANALYSIS:
-- analyze_team_performance_trends: Team performance over time
-- analyze_lineup_effectiveness: Team roster and lineup analysis
-
-PLAYER-TEAM COMBINED ANALYSIS:
-- analyze_player_team_impact: Player's contribution to team performance
-- analyze_player_team_synergy: Player-team fit and compatibility
-- compare_teams_player_impact: How different teams utilize players
-- analyze_team_offensive_efficiency_by_player_contribution: Individual impact on team efficiency
-
-STATISTICAL ANALYSIS:
-- analyze_statistical_correlations: Statistical relationships in player data
-- cluster_players_by_playing_style: Group players by statistical similarity
-- analyze_player_performance_by_game_situation: Situational performance analysis
-
-CUSTOM QUERIES:
-- run_query: Execute custom BigQuery SQL
-- get_query_status: Check query execution status
-- get_query_results: Retrieve custom query results
-
-All tools return JSON-serializable dictionaries with a `status` field indicating
-success or error, along with relevant data and analysis results.
-"""
-
-from dataclasses import asdict
-from datetime import date, datetime
 import os
-from typing import Any, Dict, List, Optional, Tuple
-
+import google.auth
+from pathlib import Path
+from google.adk.agents import Agent
+from google.adk.tools.bigquery import BigQueryToolset
+from google.adk.tools.bigquery import BigQueryCredentialsConfig
+from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.tool_context import ToolContext
+from google.adk.tools import FunctionTool
 from google.cloud import bigquery
 from google.api_core import exceptions as gcloud_exceptions
 
-from google.adk.tools import FunctionTool
-
-from analytics_pipeline.analytics.metrics import PlayerGameStats
-from analytics_pipeline.analytics.efficiency import EfficiencyAnalyzer
-from analytics_pipeline.analytics.defensive import (
-    analyze_defensive_strengths,
-)
-
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 DEFAULT_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "yuchida-dev")
 DATASET_ID = os.getenv("NBA_ANALYTICS_DATASET", "nba_analytics")
 RAW_TABLE = f"{DATASET_ID}.players_raw"
 TEAM_STATS_TABLE = f"{DATASET_ID}.totals"
+
+@dataclass
+class PlayerGameStats:
+    points: int = 0
+    field_goals_made: int = 0
+    field_goals_attempted: int = 0
+    three_pointers_made: int = 0
+    three_pointers_attempted: int = 0
+    free_throws_made: int = 0
+    free_throws_attempted: int = 0
+    rebounds_offensive: int = 0
+    rebounds_defensive: int = 0
+    rebounds_total: int = 0
+    assists: int = 0
+    steals: int = 0
+    blocks: int = 0
+    turnovers: int = 0
+    fouls_personal: int = 0
+    minutes_played: float = 0.0
+
+
+def calculate_defensive_impact_score(stats: PlayerGameStats) -> Optional[float]:
+    if stats.minutes_played <= 0:
+        return None
+    steals_per_36 = (stats.steals / stats.minutes_played) * 36.0
+    blocks_per_36 = (stats.blocks / stats.minutes_played) * 36.0
+    dreb_per_36 = (stats.rebounds_defensive / stats.minutes_played) * 36.0
+    if stats.fouls_personal == 0:
+        foul_score = 15.0
+    else:
+        fouls_per_36 = (stats.fouls_personal / stats.minutes_played) * 36.0
+        foul_score = max(15.0 - (fouls_per_36 * 2.0), 0.0)
+    steals_score = min(steals_per_36 * 8.0, 25.0)
+    blocks_score = min(blocks_per_36 * 6.0, 20.0)
+    dreb_score = min(dreb_per_36 * 2.0, 25.0)
+    minutes_factor = min(stats.minutes_played / 32.0, 1.2)
+    base = steals_score + blocks_score + dreb_score + foul_score
+    return min(base * minutes_factor, 100.0)
+
+
+def analyze_defensive_strengths(stats: PlayerGameStats) -> Dict[str, Any]:
+    if stats.minutes_played <= 0:
+        return {"error": "Insufficient playing time for analysis"}
+
+    def steal_rate():
+        return (stats.steals / stats.minutes_played) * 36.0 if stats.minutes_played > 0 else None
+
+    def block_rate():
+        return (stats.blocks / stats.minutes_played) * 36.0 if stats.minutes_played > 0 else None
+
+    def dreb_rate():
+        return (stats.rebounds_defensive / stats.minutes_played) * 36.0 if stats.minutes_played > 0 else None
+
+    def foul_efficiency():
+        return (stats.fouls_personal / stats.minutes_played) * 36.0 if stats.minutes_played > 0 else None
+
+    impact = calculate_defensive_impact_score(stats)
+    s = steal_rate()
+    b = block_rate()
+    d = dreb_rate()
+    f = foul_efficiency()
+
+    strengths: list[str] = []
+    weaknesses: list[str] = []
+
+    if s is not None:
+        if s >= 2.0:
+            strengths.append("Excellent steal rate")
+        elif s < 0.8:
+            weaknesses.append("Low steal production")
+        elif s == 0:
+            weaknesses.append("No steals")
+
+    if b is not None:
+        if b >= 1.5:
+            strengths.append("Strong shot blocking")
+        elif b < 0.3:
+            weaknesses.append("Limited shot blocking")
+        elif b == 0:
+            weaknesses.append("No blocks")
+
+    if d is not None:
+        if d >= 8.0:
+            strengths.append("Excellent defensive rebounding")
+        elif d < 4.0:
+            weaknesses.append("Below average defensive rebounding")
+        elif d == 0:
+            weaknesses.append("No defensive rebounds")
+
+    if f is not None:
+        if f <= 3.0:
+            strengths.append("Disciplined defense (low fouls)")
+        elif f >= 6.0:
+            weaknesses.append("Foul prone")
+        elif f == 0:
+            weaknesses.append("No fouls")
+
+    def grade(score: float | None) -> str | None:
+        if score is None:
+            return None
+        if score >= 85:
+            return "A+"
+        if score >= 80:
+            return "A"
+        if score >= 75:
+            return "A-"
+        if score >= 70:
+            return "B+"
+        if score >= 65:
+            return "B"
+        if score >= 60:
+            return "B-"
+        if score >= 55:
+            return "C+"
+        if score >= 50:
+            return "C"
+        if score >= 45:
+            return "C-"
+        if score >= 40:
+            return "D+"
+        if score >= 35:
+            return "D"
+        return "D-"
+
+    return {
+        "defensive_impact_score": impact,
+        "grade": grade(impact),
+        "steal_rate_per_36": s,
+        "block_rate_per_36": b,
+        "defensive_rebound_rate_per_36": d,
+        "foul_rate_per_36": f,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "minutes_played": stats.minutes_played,
+    }
+
+
+
+
+@dataclass
+class EfficiencyGame:
+    game_date: date
+    true_shooting_pct: float
+    points: int
+    field_goal_attempts: int
+    minutes_played: float
+
+
+class EfficiencyAnalyzer:
+    def __init__(self) -> None:
+        self.efficiency_games: List[EfficiencyGame] = []
+
+    def add_game(self, game_data: EfficiencyGame) -> None:
+        self.efficiency_games.append(game_data)
+
+    def add_game_from_stats(self, game_date: date, stats: PlayerGameStats) -> None:
+        ts_pct = calculate_true_shooting_percentage(stats)
+        if ts_pct is None:
+            return
+        self.add_game(
+            EfficiencyGame(
+                game_date=game_date,
+                true_shooting_pct=ts_pct,
+                points=stats.points,
+                field_goal_attempts=stats.field_goals_attempted,
+                minutes_played=stats.minutes_played,
+            )
+        )
+
+    def get_efficiency_summary(self) -> Dict[str, Any]:
+        if not self.efficiency_games:
+            return {"error": "No games available for analysis"}
+        # Minimal summary: average TS and simple best/worst
+        ts_values = [g.true_shooting_pct for g in self.efficiency_games]
+        avg_ts = sum(ts_values) / len(ts_values)
+        best = max(self.efficiency_games, key=lambda g: g.true_shooting_pct)
+        worst = min(self.efficiency_games, key=lambda g: g.true_shooting_pct)
+        return {
+            "games_analyzed": len(self.efficiency_games),
+            "average_true_shooting_pct": round(avg_ts, 3),
+            "best_game": {
+                "date": best.game_date.isoformat(),
+                "true_shooting_pct": round(best.true_shooting_pct, 3),
+                "points": best.points,
+            },
+            "worst_game": {
+                "date": worst.game_date.isoformat(),
+                "true_shooting_pct": round(worst.true_shooting_pct, 3),
+                "points": worst.points,
+            },
+        }
+
+
+
+def calculate_true_shooting_percentage(stats: PlayerGameStats) -> Optional[float]:
+    if stats.field_goals_attempted == 0 and stats.free_throws_attempted == 0:
+        return None
+    tsa = stats.field_goals_attempted + (0.44 * stats.free_throws_attempted)
+    if tsa == 0:
+        return None
+    return stats.points / (2 * tsa)
+
 
 
 def _bq_client(project_id: Optional[str] = None) -> bigquery.Client:
@@ -2262,32 +2417,106 @@ def analyze_team_offensive_efficiency_by_player_contribution(
         return {"status": "error", "message": str(e)}
 
 
-# Expose ADK tools
-run_query_tool = FunctionTool(run_query)
-get_query_status_tool = FunctionTool(get_query_status)
-get_query_results_tool = FunctionTool(get_query_results)
 
-get_player_stats_tool = FunctionTool(get_player_stats)
-get_player_stats_by_season_tool = FunctionTool(get_player_stats_by_season)
-get_team_stats_tool = FunctionTool(get_team_stats)
-get_player_monthly_trends_tool = FunctionTool(get_player_monthly_trends)
-analyze_player_efficiency_tool = FunctionTool(analyze_player_efficiency)
-analyze_player_defense_tool = FunctionTool(analyze_player_defense)
+# Lazy import tools inside factory to avoid import at module load time
 
-# New advanced analysis tools
-compare_players_advanced_metrics_tool = FunctionTool(compare_players_advanced_metrics)
-analyze_team_performance_trends_tool = FunctionTool(analyze_team_performance_trends)
-analyze_player_efficiency_deep_dive_tool = FunctionTool(analyze_player_efficiency_deep_dive)
-analyze_player_performance_by_game_situation_tool = FunctionTool(analyze_player_performance_by_game_situation)
-predict_player_performance_tool = FunctionTool(predict_player_performance)
-calculate_advanced_basketball_metrics_tool = FunctionTool(calculate_advanced_basketball_metrics)
-analyze_statistical_correlations_tool = FunctionTool(analyze_statistical_correlations)
-cluster_players_by_playing_style_tool = FunctionTool(cluster_players_by_playing_style)
+# CREDENTIALS_TYPE = AuthCredentialTypes.SERVICE_ACCOUNT
 
-# New player-team combined analysis tools
-analyze_player_team_impact_tool = FunctionTool(analyze_player_team_impact)
-analyze_lineup_effectiveness_tool = FunctionTool(analyze_lineup_effectiveness)
-analyze_player_team_synergy_tool = FunctionTool(analyze_player_team_synergy)
-compare_teams_player_impact_tool = FunctionTool(compare_teams_player_impact)
-analyze_team_offensive_efficiency_by_player_contribution_tool = FunctionTool(analyze_team_offensive_efficiency_by_player_contribution)
+# if CREDENTIALS_TYPE == AuthCredentialTypes.OAUTH2:
+#   # Initiaze the tools to do interactive OAuth
+#   credentials_config = BigQueryCredentialsConfig(
+#       client_id=os.getenv("OAUTH_CLIENT_ID"),
+#       client_secret=os.getenv("OAUTH_CLIENT_SECRET"),
+#   )
+# elif CREDENTIALS_TYPE == AuthCredentialTypes.SERVICE_ACCOUNT:
+#   # Initialize the tools to use the credentials in the service account key.
+#   creds, _ = google.auth.load_credentials_from_file("service_account_key.json")
+#   credentials_config = BigQueryCredentialsConfig(credentials=creds)
+# else:
+#   # Initialize the tools to use the application default credentials.
+#   application_default_credentials, _ = google.auth.default()
+#   credentials_config = BigQueryCredentialsConfig(credentials=application_default_credentials)
 
+def _load_bq_credentials():
+    """Resolve and load service account credentials robustly.
+
+    Resolution order:
+    - GOOGLE_APPLICATION_CREDENTIALS (absolute or relative)
+    - <project_root>/secrets/yuchida-dev-d61ebd48c01e.json
+    - CWD/secrets/yuchida-dev-d61ebd48c01e.json
+    - Fallback to Application Default Credentials
+    """
+    # Candidate 1: from env
+    env_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    candidates = []
+    if env_path:
+        candidates.append(Path(env_path))
+
+    # Candidate 2: project_root/secrets/<file>
+    project_root = Path(__file__).resolve().parents[2]
+    candidates.append(project_root / "secrets" / "yuchida-dev-d61ebd48c01e.json")
+
+    # Candidate 3: CWD/secrets/<file>
+    candidates.append(Path.cwd() / "secrets" / "yuchida-dev-d61ebd48c01e.json")
+
+    for p in candidates:
+        try:
+            if p and p.exists():
+                creds, _ = google.auth.load_credentials_from_file(str(p))
+                return creds
+        except Exception:
+            pass
+
+    # Fallback to ADC
+    creds, _ = google.auth.default()
+    return creds
+
+
+def _init_bq_toolset() -> BigQueryToolset:
+    credentials_config = BigQueryCredentialsConfig(credentials=_load_bq_credentials())
+    return BigQueryToolset(credentials_config=credentials_config)
+
+_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "yuchida-dev")
+_DEFAULT_DATASET = os.getenv("NBA_ANALYTICS_DATASET", "nba_analytics")
+
+_bq_toolset = _init_bq_toolset()
+
+root_agent = Agent(
+    name="nba_analyst_agent",
+    model="gemini-2.0-flash",
+    description="Agent that analyzes NBA data using BigQuery and advanced metrics.",
+    instruction="""
+    You are an expert NBA analyst. Use the tools to:
+    - Retrieve player game logs, per-season summaries, team game summaries
+    - Analyze efficiency (True Shooting, trends, consistency) and defense (steal/block rates, impact)
+    - Compute monthly trends and recent performance
+    - Run custom BigQuery when needed
+
+    Be precise and cite metrics clearly. Prefer the specialized analysis tools first
+    (analyze_player_efficiency, analyze_player_defense) and fall back to raw stats tools
+    when required. Use the native BigQuery tools for SQL execution and metadata.
+    If a tool returns status=error, recover or ask for clarification.
+    """,
+    tools=[
+        get_player_stats,
+        get_player_stats_by_season,
+        get_team_stats,
+        get_player_monthly_trends,
+        analyze_player_efficiency,
+        analyze_player_defense,
+        analyze_team_performance_trends,    
+        analyze_player_efficiency_deep_dive,
+        analyze_player_performance_by_game_situation,
+        predict_player_performance,
+        calculate_advanced_basketball_metrics,
+        analyze_statistical_correlations,
+        cluster_players_by_playing_style,
+        analyze_player_team_impact,
+        analyze_lineup_effectiveness,
+        analyze_player_team_synergy,
+        compare_teams_player_impact,
+        analyze_team_offensive_efficiency_by_player_contribution,
+        compare_players_advanced_metrics,
+        _bq_toolset,
+    ],
+)

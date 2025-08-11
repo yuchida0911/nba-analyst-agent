@@ -1,105 +1,60 @@
-[build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "nba-analyst-agent"
-version = "0.1.0"
-description = "AI-powered NBA data analysis system with automated data processing and intelligent reporting"
+version = "0.1"
+description = "NBA Analytics Agent"
+authors = ["Yuta Uchida <yuchida4dev@google.com>"]
+license = "Apache License 2.0"
 readme = "README.md"
-authors = [
-    {name = "NBA Analyst Team", email = "nba-analyst@example.com"}
-]
-license = {text = "MIT"}
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-]
-requires-python = ">=3.9"
-dependencies = [
-    "psycopg2-binary>=2.9.9",
-    "SQLAlchemy>=2.0.23",
-    "alembic>=1.12.1",
-    "pandas>=2.1.4",
-    "numpy>=1.24.4",
-    "python-dotenv>=1.0.0",
-    "pydantic>=2.5.2",
-    "click>=8.1.7",
-    "google-cloud-bigquery>=3.35.1",
-    "google-adk>=1.10.0",
-    "functions-framework>=3.9.2",
-    "slack-bolt>=1.23.0",
-    "flask>=3.1.1",
-    "python-box>=7.3.2",
-    "google-cloud-pubsub>=2.31.1",
-    "google-cloud-aiplatform>=1.107.0",
-]
+package-mode = true
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.3",
-    "pytest-cov>=4.1.0",
-    "black>=23.11.0",
-    "flake8>=6.1.0",
-    "mypy>=1.7.1",
-]
+[tool.poetry.dependencies]
+python = "^3.12"
+python-dotenv = "^1.0.1"
+google-adk = "^1.5.0"
+immutabledict = "^4.2.1"
+sqlglot = "^26.10.1"
+db-dtypes = "^1.4.2"
+regex = "^2024.11.6"
+tabulate = "^0.9.0"
+google-cloud-aiplatform = { extras = [
+    "adk",
+    "agent-engines",
+], version = "^1.93.0" }
+absl-py = "^2.2.2"
+pydantic = "^2.11.3"
+pandas = "^2.3.0"
+numpy = "^2.3.1"
+google-cloud-bigquery = "^3.35.1"
 
-[project.urls]
-Homepage = "https://github.com/yuchida-tamu/nba-analyst-agent"
-Repository = "https://github.com/yuchida-tamu/nba-analyst-agent.git"
-Issues = "https://github.com/yuchida-tamu/nba-analyst-agent/issues"
+[tool.poetry.group.dev.dependencies]
+google-cloud-aiplatform = { extras = [
+    "adk",
+    "agent-engines",
+    "evaluation",
+], version = "^1.93.0" }
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
+google-adk = { extras = ["eval"], version = "^1.5.0" }
 
-[project.scripts]
-nba-ingest = "analytics_pipeline.cli:ingest"
-nba-validate = "analytics_pipeline.cli:validate"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-dir]
-"" = "src"
-
-[tool.black]
-line-length = 88
-target-version = ['py39']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --cov=src/analytics_pipeline --cov-report=term-missing --cov-report=html"
+console_output_style = "progress"
+addopts = "-vv -s"
+#addopts = "-vv -s --pdb"
+testpaths = ["tests/"]
+log_level = "DEBUG"
+log_cli = true
+log_auto_indent = true
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+log_cli_format = "[%(asctime)s] %(levelname)s (%(funcName)s) \t [%(pathname)s:%(lineno)d] %(message)s"
+filterwarnings = [
+    #"error",
+    "ignore::UserWarning",
+    # note the use of single quote below to denote "raw" strings in TOML
+    #'ignore:function ham\(\) is deprecated:DeprecationWarning',
+]
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

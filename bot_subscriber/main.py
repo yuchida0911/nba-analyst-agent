@@ -7,6 +7,15 @@ from typing import Dict, Any
 import functions_framework
 import requests
 from google.cloud import secretmanager
+from google.adk.sessions import VertexAiSessionService
+import asyncio
+from vertexai import agent_engines
+
+
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
+LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION")
+BUCKET = os.getenv("GOOGLE_CLOUD_STORAGE_BUCKET")
+AGENT_ID = os.getenv("AGENT_ID")
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -18,8 +27,6 @@ def get_secret(project_id: str, secret_id: str, version_id: str = "latest") -> s
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
-
-PROJECT_ID = os.environ.get("GCP_PROJECT", "yuchida-dev")
 
 # Get Slack bot token from Secret Manager
 try:
@@ -33,6 +40,17 @@ def process_nba_analytics(cloud_event):
     """Process NBA analytics request from PubSub and respond to Slack thread."""
     
     try:
+        vertexai.init(
+            project=PROJECT_ID,
+            location=LOCATION,
+            staging_bucket=f"gs://{BUCKET}",
+        )
+        # Initialize Vertex AI Agent Engine
+        session_service = VertexAiSessionService(PROJECT_ID, LOCATION)
+        session = asyncio.run(session_service.create_session(
+            app_name=AGENT_ID,
+            user_id="slack_bot")
+        )
         # Get the message data (instructions)
         message_data = cloud_event.data["message"]["data"]
         instructions = base64.b64decode(message_data).decode("utf-8")
@@ -47,18 +65,22 @@ def process_nba_analytics(cloud_event):
         
         logger.info(f"Processing instructions: {instructions}")
         logger.info(f"Slack metadata - Channel: {channel}, Thread: {thread_ts}, User: {user}")
-        
-        # Process the NBA analytics request here
-        # For now, let's create a simple response
-        response_text = f"🏀 **NBA Analytics Response**\n\nProcessed your request: '{instructions.strip()}'\n\n_This is a placeholder response. NBA analytics processing will be implemented here._"
-        
-        # Send response back to Slack thread
-        if SLACK_BOT_TOKEN and channel and thread_ts:
-            send_slack_response(channel, response_text, thread_ts, user)
-        else:
-            logger.error("Missing Slack token or thread information - cannot send response")
-            
-        return {"status": "success", "processed": instructions}
+        # Send user query to Agent Engine
+        for event in session_service.stream_query(
+            user_id="slack_bot",
+            session_id=session.id,
+            message=instructions
+        ):
+            if "content" in event:
+                if "parts" in event["content"]:
+                    parts = event["content"]["parts"]
+                    for part in parts:
+                        if "text" in part:
+                            text_part = part["text"]
+                            if SLACK_BOT_TOKEN and channel and thread_ts:
+                                send_slack_response(channel, text_part, thread_ts, user)
+                            else:
+                                logger.error("Missing Slack token or thread information - cannot send response")
         
     except Exception as e:
         logger.error(f"Error processing PubSub message: {e}")
